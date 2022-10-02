@@ -22,7 +22,9 @@
         <MudIconButton Icon="@Icons.Material.Outlined.Add" @onclick="NewBook" />
         <MudIconButton Icon="@Icons.Filled.ArrowDownward" @onclick="ImportBooks" />
         <MudSpacer />
-        <MudSwitch @bind-Checked="@filterUnmatched" Color="Color.Primary" Label="Hide Matched" LabelPosition="LabelPosition.Start" />
+        <MudSwitch @bind-Checked="@hideMatched" Color="Color.Primary" Label="Hide Matched" LabelPosition="LabelPosition.Start" />
+        <MudSwitch @bind-Checked="@showAudible" Color="Color.Warning" Label="Show Audible" LabelPosition="LabelPosition.Start" />
+        <MudSwitch @bind-Checked="@showAudiobookGuild" Color="Color.Error" Label="Show Audiobook Guild" LabelPosition="LabelPosition.Start" />
         <MudSpacer />
         <MudTextField @bind-Value="searchString" Placeholder="Search for Books..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
     </ToolBarContent>
@@ -38,13 +40,32 @@
         <MudTd DataLabel="ISBN">@context.ISBN</MudTd>
         <MudTd DataLabel="Title">@context.Title</MudTd>
         <MudTd DataLabel="Authors">@String.Join(", ", context.Authors.Select(a => a.Name))</MudTd>
-        <MudTd DataLabel="ASIN">@context.ASIN</MudTd>
-        <MudTd DataLabel="AGID">@context.AGID</MudTd>
+        <MudTd DataLabel="ASIN">
+            @if (!string.IsNullOrWhiteSpace(@context.ASIN))
+            {
+                <MudIcon Icon="@Icons.Filled.Check" Size="Size.Small" />
+            }
+            else if (!@context.AudibleExists)
+            {
+                <MudIcon Icon="@Icons.Filled.Close" Size="Size.Small" />
+            }
+        </MudTd>
+        <MudTd DataLabel="AGID">
+            @if (!string.IsNullOrWhiteSpace(@context.AGID))
+            {
+                <MudIcon Icon="@Icons.Filled.Check" Size="Size.Small" />
+            }
+            else if (!@context.AudiobookGuildExists || !book.Authors.Any(a => AudiobookGuild.AGAuthors.Contains(a.Name)))
+            {
+                <MudIcon Icon="@Icons.Filled.Close" Size="Size.Small" />
+            }
+        </MudTd>
         <MudTd DataLabel="">
             <MudFab @onclick="@(()=>Edit(@context.ISBN))" Color="Color.Primary" Icon="@Icons.Material.Filled.Edit" Size="Size.Small" IconSize="Size.Small" />
             <MudFab @onclick="@(()=>Match("Audible", @context.ISBN))" Color="Color.Warning" Icon="@Icons.Filled.Link" Size="Size.Small" IconSize="Size.Small" />
             <MudFab @onclick="@(()=>Match("AudiobookGuild", @context.ISBN))" Color="Color.Error" Icon="@Icons.Filled.Link" Size="Size.Small" IconSize="Size.Small" />
             <MudFab @onclick="@(()=>Delete(@context.ISBN))" Color="Color.Dark" Icon="@Icons.Material.Filled.Delete" Size="Size.Small" IconSize="Size.Small" />
+            <MudFab @onclick="@(()=>hiddenBooks.Add(@context))" Color="Color.Default" Icon="@Icons.Filled.RemoveRedEye" Size="Size.Small" IconSize="Size.Small" />
         </MudTd>
     </RowTemplate>
     <PagerContent>
@@ -221,7 +242,11 @@
 
 @code {
     private string searchString = "";
-    private bool filterUnmatched = false;
+    private bool hideMatched = false;
+    private bool showAudible = true;
+    private bool showAudiobookGuild = true;
+    private List<Book> hiddenBooks = new List<Book>();
+
     private Book book = new Book();
     private List<Book> books = new List<Book>();
     string DeleteItemIcon = Icons.Filled.Delete;
@@ -251,12 +276,15 @@
 
     private bool Search(Book book)
     {
-        if (filterUnmatched &&
+        if (hiddenBooks.Contains(book)) return false;
+        if (hideMatched &&
             (!string.IsNullOrWhiteSpace(book.ASIN) || !book.AudibleExists) && // ASIN Is Matched
             (!string.IsNullOrWhiteSpace(book.AGID) || !book.AudiobookGuildExists || !book.Authors.Any(a => AudiobookGuild.AGAuthors.Contains(a.Name)))) // AGID Is Matched
         {
             return false;
         }
+        if (!showAudible && !book.Authors.Any(a => AudiobookGuild.AGAuthors.Contains(a.Name))) return false;
+        if (!showAudiobookGuild && book.Authors.Any(a => AudiobookGuild.AGAuthors.Contains(a.Name))) return false;
         if (string.IsNullOrWhiteSpace(searchString)) return true;
         if (book.Title.Contains(searchString, StringComparison.OrdinalIgnoreCase)
             || (book.Subtitle != null && book.Subtitle.Contains(searchString, StringComparison.OrdinalIgnoreCase))
