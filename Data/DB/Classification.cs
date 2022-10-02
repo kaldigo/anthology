@@ -32,7 +32,7 @@ namespace Anthology.Data.DB
                 else list.Add(new Classification() { Name = item, Type = ClassificationType.Genre });
             }
 
-            return list;
+            return list.Distinct().ToList();
         }
     }
 }
