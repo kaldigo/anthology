@@ -1,0 +1,411 @@
+﻿@page "/Books"
+
+<PageTitle>Books</PageTitle>
+
+@using Anthology.Data
+@using Anthology.Data.DB
+@using Anthology.Services
+@inject Anthology.Services.IBookService bookService
+@inject MudBlazor.ISnackbar snackBar
+
+<h3>Match:</h3>
+
+<div class="form-group">
+    <a class="btn btn-warning" href="Books/Match/Audible">Audible</a>
+    <a class="btn btn-info" href="Books/Match/AudiobookGuild">Audiobook Guild</a>
+</div>
+<MudTable Items="GetBooks()" Filter="new Func<Book, bool>(Search)" @bind-book="book">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Books</MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@Icons.Material.Outlined.Add" @onclick="NewBook" />
+        <MudIconButton Icon="@Icons.Filled.ArrowDownward" @onclick="ImportBooks" />
+        <MudSpacer />
+        <MudTextField @bind-Value="searchString" Placeholder="Search for Books..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>ISBN</MudTh>
+        <MudTh>Title</MudTh>
+        <MudTh>Authors</MudTh>
+        <MudTh>ASIN</MudTh>
+        <MudTh>AGID</MudTh>
+        <MudTh> </MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="ISBN">@context.ISBN</MudTd>
+        <MudTd DataLabel="Title">@context.Title</MudTd>
+        <MudTd DataLabel="Authors">@String.Join(", ", context.Authors.Select(a => a.Name))</MudTd>
+        <MudTd DataLabel="ASIN">@context.ASIN</MudTd>
+        <MudTd DataLabel="AGID">@context.AGID</MudTd>
+        <MudTd DataLabel="">
+            <MudFab @onclick="@(()=>Edit(@context.ISBN))" Color="Color.Primary" Icon="@Icons.Material.Filled.Edit" Size="Size.Small" IconSize="Size.Small" />
+            <MudFab @onclick="@(()=>Match("Audible", @context.ISBN))" Color="Color.Warning" Icon="@Icons.Filled.Link" Size="Size.Small" IconSize="Size.Small" />
+            <MudFab @onclick="@(()=>Match("AudiobookGuild", @context.ISBN))" Color="Color.Error" Icon="@Icons.Filled.Link" Size="Size.Small" IconSize="Size.Small" />
+            <MudFab @onclick="@(()=>Delete(@context.ISBN))" Color="Color.Dark" Icon="@Icons.Material.Filled.Delete" Size="Size.Small" IconSize="Size.Small" />
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+<MudDialog @bind-IsVisible="@editVisible" Options="dialogOptions" DisableSidePadding="true">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Add / Edit Books</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Style="max-height: 70vh; overflow-y: scroll">
+            <MudStack Row="true">
+                <MudTextField @bind-Value="book.ISBN" Label="ISBN" Variant="Variant.Text" Margin="Margin.Normal" Disabled="true" />
+                <MudTextField @bind-Value="book.Title" Label="Title" Variant="Variant.Text" Margin="Margin.Normal" />
+                <MudTextField @bind-Value="book.Subtitle" Label="Title" Variant="Variant.Text" Margin="Margin.Normal" />
+            </MudStack>
+
+            <MudText Typo="Typo.body1">Authors</MudText>
+            <MudStack Row="true">
+                @foreach (var item in book.Authors)
+                {
+                    <MudTextField @bind-Value="item.Name" Label="Name" Variant="Variant.Text" Margin="Margin.Normal" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Delete" OnAdornmentClick="@(() => DeleteItem(item))" AdornmentAriaLabel="Delete Item" />
+                }
+                <MudIconButton Icon="@Icons.Filled.Add" Color="Color.Primary" OnClick="@(() => AddItem("Author"))">Add Author</MudIconButton>
+            </MudStack>
+
+            <MudText Typo="Typo.body1">Narrators</MudText>
+            <MudStack Row="true">
+                @foreach (var item in book.Narrators)
+                {
+                    <MudTextField @bind-Value="item.Name" Label="Name" Variant="Variant.Text" Margin="Margin.Normal" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Delete" OnAdornmentClick="@(() => DeleteItem(item))" AdornmentAriaLabel="Delete Item" />
+                }
+                <MudIconButton Icon="@Icons.Filled.Add" Color="Color.Primary" OnClick="@(() => AddItem("Narrator"))">Add Narrator</MudIconButton>
+            </MudStack>
+
+            <MudText Typo="Typo.body1">Series</MudText>
+            <MudStack Row="true">
+                @foreach (var item in book.Series)
+                {
+                    <MudTextField @bind-Value="item.Name" Label="Name" Variant="Variant.Text" Margin="Margin.Normal" />
+                    <MudNumericField @bind-Value="item.Sequence" Label="Sequence" Variant="Variant.Text" Margin="Margin.Normal" />
+                    <MudIconButton Icon="@Icons.Filled.Delete" OnClick="@(() => DeleteItem(item))">Delete Series</MudIconButton>
+                }
+                <MudIconButton Icon="@Icons.Filled.Add" Color="Color.Primary" OnClick="@(() => AddItem("Series"))">Add Series</MudIconButton>
+            </MudStack>
+
+            <MudTextField @bind-Value="book.Description" Label="Description" Variant="Variant.Text" Margin="Margin.Normal" Lines="5" />
+            <MudStack Row="true">
+                <MudTextField @bind-Value="book.Publisher" Label="Publisher" Variant="Variant.Text" Margin="Margin.Normal" />
+                <MudTextField @bind-Value="book.PublishDate" Label="Publish Date" Variant="Variant.Text" Margin="Margin.Normal" InputType="InputType.Date" />
+                <MudTextField @bind-Value="book.Language" Label="Language" Variant="Variant.Text" Margin="Margin.Normal" />
+            </MudStack>
+
+            <MudText Typo="Typo.body1">Genres</MudText>
+            <MudStack Row="true">
+                @foreach (var item in book.Genres)
+                {
+                    <MudTextField @bind-Value="item.Name" Label="Name" Variant="Variant.Text" Margin="Margin.Normal" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Delete" OnAdornmentClick="@(() => DeleteItem(item))" AdornmentAriaLabel="Delete Item" />
+                }
+                <MudIconButton Icon="@Icons.Filled.Add" Color="Color.Primary" OnClick="@(() => AddItem("Genre"))">Add Genre</MudIconButton>
+            </MudStack>
+
+            <MudText Typo="Typo.body1">Tags</MudText>
+            <MudStack Row="true">
+                @foreach (var item in book.Tags)
+                {
+                    <MudTextField @bind-Value="item.Name" Label="Name" Variant="Variant.Text" Margin="Margin.Normal" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Delete" OnAdornmentClick="@(() => DeleteItem(item))" AdornmentAriaLabel="Delete Item" />
+                }
+                <MudIconButton Icon="@Icons.Filled.Add" Color="Color.Primary" OnClick="@(() => AddItem("Tag"))">Add Tag</MudIconButton>
+            </MudStack>
+
+            <MudCheckBox @bind-Checked="book.IsExplicit" Label="Is Explicit" />
+            <MudTextField @bind-Value="book.GRID" Label="GRID" Variant="Variant.Text" Margin="Margin.Normal" />
+            <MudTextField @bind-Value="book.ASIN" Label="ASIN" Variant="Variant.Text" Margin="Margin.Normal" />
+            <MudCheckBox @bind-Checked="book.AudibleExists" Label="Audible Exists" />
+            <MudTextField @bind-Value="book.AGID" Label="AGID" Variant="Variant.Text" Margin="Margin.Normal" />
+            <MudCheckBox @bind-Checked="book.AudiobookGuildExists" Label="Audiobook Guild Exists" />
+
+            <MudText Typo="Typo.body1">Book Covers</MudText>
+            <MudStack Row="true">
+                @foreach (var item in book.BookCovers)
+                {
+                    <MudCard Style="width: 200px">
+                        <MudCardMedia Image="@item.GetUrl(book.ISBN)" />
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => DeleteItem(item))">Delete</MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                }
+                <InputFile id="bookCoverInput" OnChange="AddBookCover" hidden />
+                <MudFab HtmlTag="label" Color="Color.Success" Icon="@Icons.Filled.AttachFile" for="bookCoverInput" />
+            </MudStack>
+
+            <MudText Typo="Typo.body1">Audiobook Covers</MudText>
+            <MudStack Row="true">
+                @foreach (var item in book.AudiobookCovers)
+                {
+                    <MudCard Style="width: 200px">
+                        <MudCardMedia Image="@item.GetUrl(book.ISBN)" Height="200" />
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => DeleteItem(item))">Delete</MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                }
+                <InputFile id="audiobookCoverInput" OnChange="AddAudiobookCover" hidden />
+                <MudFab HtmlTag="label" Color="Color.Success" Icon="@Icons.Filled.AttachFile" for="audiobookCoverInput" />
+            </MudStack>
+
+            <MudText Typo="Typo.body1">Book Images</MudText>
+            <MudStack Row="true">
+                @foreach (var item in book.Images)
+                {
+                    <MudCard Style="width: 200px">
+                        <MudCardMedia Image="@item.GetUrl(book.ISBN)" Height="200" Style="background-size: contain;" />
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => DeleteItem(item))">Delete</MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                }
+                <InputFile id="bookImageInput" OnChange="AddBookImage" hidden />
+                <MudFab HtmlTag="label" Color="Color.Success" Icon="@Icons.Filled.AttachFile" for="bookImageInput" />
+            </MudStack>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="Save">Save Book</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-IsVisible="@matchVisible" Options="dialogOptions" DisableSidePadding="true">
+    <TitleContent>
+        <MudText Typo="Typo.h4">Match @matchSource</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h5">@book.Title</MudText>
+                    <MudText Typo="Typo.h6">@book.ISBN</MudText>
+                    <MudText Typo="Typo.body1">@String.Join(", ", book.Authors.Select(a => a.Name))</MudText>
+                    <MudText Typo="Typo.body1">@book.ReadarrMatch().seriesTitle</MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Filled" Color="Color.Dark" @onclick="@(() => SetNone())">None</MudButton>
+                </CardHeaderActions>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudContainer Style="overflow-x: scroll">
+                    <MudStack Row="true">
+                    @foreach (var match in book.Matches(matchSource))
+                    {
+                        <MudCard Style="width: 300px;flex-shrink: 0;">
+                            <MudCardMedia Image="@match.Image" Height="300" />
+                            <MudCardContent>
+                                <MudText Typo="Typo.h5">@match.Title</MudText>
+                                <MudText Typo="Typo.h6">@match.Identifier</MudText>
+                                <MudText Typo="Typo.body1">@match.Authors</MudText>
+                                <MudText Typo="Typo.body1">@match.Series</MudText>
+                            </MudCardContent>
+                            <MudCardActions>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="@(() => MatchBook(match.Identifier))">Select Match</MudButton>
+                            </MudCardActions>
+                        </MudCard>
+                        }
+                    </MudStack>
+                </MudContainer>
+            </MudCardContent>
+        </MudCard>
+    </DialogContent>
+</MudDialog>
+
+
+@code {
+    private string searchString = "";
+    private Book book = new Book();
+    private List<Book> books = new List<Book>();
+    string DeleteItemIcon = Icons.Filled.Delete;
+
+    private bool editVisible = false;
+    private bool matchVisible = false;
+    private DialogOptions dialogOptions = new() { FullWidth = true, CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.False };
+
+    private string matchSource = "Audible";
+
+    protected override async Task OnInitializedAsync()
+    {
+        GetBooks();
+    }
+
+    private async Task ImportBooks()
+    {
+        await ImportService.Run();
+        GetBooks();
+    }
+
+    private List<Book> GetBooks()
+    {
+        books = bookService.GetBooks();
+        return books;
+    }
+
+    private bool Search(Book book)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        if (book.Title.Contains(searchString, StringComparison.OrdinalIgnoreCase)
+            || (book.Subtitle != null && book.Subtitle.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            || (book.Authors.Count > 0 && String.Join(" ", book.Authors.Select(i => i.Name)).Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            || (book.Narrators.Count > 0 && String.Join(" ", book.Narrators.Select(i => i.Name)).Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            || (book.Series.Count > 0 && String.Join(" ", book.Series.Select(i => i.Name)).Contains(searchString, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+        return false;
+    }
+    private void Save()
+    {
+        bookService.SaveBook(book);
+        editVisible = false;
+        book = new Book();
+        snackBar.Add("Book Saved.", Severity.Success);
+        GetBooks();
+    }
+
+    private void Edit(string isbn)
+    {
+        book = books.FirstOrDefault(b => b.ISBN == isbn);
+        editVisible = true;
+    }
+
+    private void NewBook()
+    {
+        book = new Book();
+        editVisible = true;
+    }
+
+    private void Delete(string isbn)
+    {
+        bookService.DeleteBook(isbn);
+        snackBar.Add("Book Deleted.", Severity.Success);
+        GetBooks();
+    }
+
+    protected async Task DeleteItem(BookAuthor item)
+    {
+        book.Authors.Remove(item);
+    }
+
+    protected async Task DeleteItem(BookNarrator item)
+    {
+        book.Narrators.Remove(item);
+    }
+
+    protected async Task DeleteItem(BookSeries item)
+    {
+        book.Series.Remove(item);
+    }
+
+    protected async Task DeleteItem(BookGenre item)
+    {
+        book.Genres.Remove(item);
+    }
+
+    protected async Task DeleteItem(BookTag item)
+    {
+        book.Tags.Remove(item);
+    }
+
+    protected async Task DeleteItem(BookCover item)
+    {
+        item.DeleteFile(book.ISBN);
+        book.BookCovers.Remove(item);
+    }
+
+    protected async Task DeleteItem(AudiobookCover item)
+    {
+        item.DeleteFile(book.ISBN);
+        book.AudiobookCovers.Remove(item);
+    }
+
+    protected async Task DeleteItem(BookImage item)
+    {
+        item.DeleteFile(book.ISBN);
+        book.Images.Remove(item);
+    }
+
+    protected async Task AddItem(string type)
+    {
+        switch (type)
+        {
+            case "Author":
+                book.Authors.Add(new BookAuthor());
+                break;
+            case "Narrator":
+                book.Narrators.Add(new BookNarrator());
+                break;
+            case "Series":
+                book.Series.Add(new BookSeries());
+                break;
+            case "Genre":
+                book.Genres.Add(new BookGenre());
+                break;
+            case "Tag":
+                book.Tags.Add(new BookTag());
+                break;
+        }
+    }
+
+    protected async Task AddBookCover(InputFileChangeEventArgs e)
+    {
+        var bookImage = new BookCover() { FileName = e.File.Name };
+        await SaveFile(e.File, bookImage.GetPath(book.ISBN));
+        book.BookCovers.Add(bookImage);
+    }
+
+    protected async Task AddAudiobookCover(InputFileChangeEventArgs e)
+    {
+        var bookImage = new AudiobookCover() { FileName = e.File.Name };
+        await SaveFile(e.File, bookImage.GetPath(book.ISBN));
+        book.AudiobookCovers.Add(bookImage);
+    }
+
+    protected async Task AddBookImage(InputFileChangeEventArgs e)
+    {
+        var bookImage = new BookImage() { FileName = e.File.Name };
+        await SaveFile(e.File, bookImage.GetPath(book.ISBN));
+        book.Images.Add(bookImage);
+    }
+
+    private async Task SaveFile(IBrowserFile imageFile, string path)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        await using FileStream fs = new(path, FileMode.Create);
+        await imageFile.OpenReadStream(51200000).CopyToAsync(fs);
+    }
+
+    private void Match(string source, string isbn)
+    {
+        matchSource = source;
+        book = books.FirstOrDefault(b => b.ISBN == isbn); 
+        matchVisible = true;
+    }
+    
+
+    protected async Task SetNone()
+    {
+        if(matchSource == "Audible") book.AudibleExists = false;
+        if(matchSource == "AudiobookGuild") book.AudiobookGuildExists = false;        
+        bookService.SaveBook(book);
+        matchVisible = false;
+        book = new Book();
+        snackBar.Add("Book Matched.", Severity.Success);
+        GetBooks();
+    }
+
+    protected async Task MatchBook(string bookIdentifier)
+    {
+        if(matchSource == "Audible") book.ASIN = bookIdentifier;
+        if (matchSource == "AudiobookGuild") book.AGID = bookIdentifier;        
+        bookService.SaveBook(book);
+        matchVisible = false;
+        book = new Book();
+        snackBar.Add("Book Matched.", Severity.Success);
+        GetBooks();
+    }
+}

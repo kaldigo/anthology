@@ -1,0 +1,106 @@
+﻿@page "/Download"
+
+<PageTitle>Download</PageTitle>
+
+@using Anthology.Data
+@using Anthology.Data.DB
+@using Anthology.Services
+@inject Anthology.Services.IBookFunnelService bookFunnelService
+@inject MudBlazor.ISnackbar snackBar
+
+
+<MudCard Elevation="25">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Download Books</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudStack Row="true">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => bookFunnelService.RefreshBookList())">Refresh List</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="@(() => bookFunnelService.DownloadMissing())">Download Missing</MudButton>
+            </MudStack>
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudGrid>
+            @foreach (var book in GetBooks())
+            {
+                <MudItem Style="width: 212px; padding: 6px;">
+                    <MudCard Style="width: 200px">
+                        <MudCardMedia Image="@book.GetImageURL()" Height="200" Style="background-size: contain;" />
+                        <MudCardActions>
+                            @if (!book.Downloaded || book.Extracted)
+                            {
+                                <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => DownloadBook(book.ID))">Download</MudButton>
+                            }
+                            else
+                            {
+                                <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => bookFunnelService.ExtractBook(book.ID))">Extract</MudButton>
+                            }
+                            @if (book.Downloaded && !book.Extracted)
+                            {
+                                <MudIconButton Icon="@Icons.Filled.Circle" Color="Color.Warning" />
+                            }
+                            else if (book.Downloaded && book.Extracted)
+                            {
+                                <MudIconButton Icon="@Icons.Filled.Circle" Color="Color.Success" />
+                            }
+                            else
+                            {
+                                <MudIconButton Icon="@Icons.Filled.Circle" Color="Color.Dark" />
+                            }
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private string searchString = "";
+    private List<BookFunnel> books = new List<BookFunnel>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        GetBooks();
+    }
+
+    private List<BookFunnel> GetBooks()
+    {
+        books = bookFunnelService.GetBooks();
+        return books;
+    }
+
+    private bool Search(BookFunnel book)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        if (book.Title.Contains(searchString, StringComparison.OrdinalIgnoreCase)
+            || book.Author.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private void RefreshBooks()
+    {
+
+        bookFunnelService.RefreshBookList();
+        GetBooks();
+    }
+
+    private void DownloadMissing()
+    {
+
+        bookFunnelService.DownloadMissing();
+        GetBooks();
+    }
+
+    private void DownloadBook(string bookID)
+    {
+
+        bookFunnelService.DownloadBook(bookID);
+        GetBooks();
+    }
+}

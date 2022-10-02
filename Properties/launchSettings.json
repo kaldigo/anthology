@@ -1,0 +1,46 @@
+{
+  "iisSettings": {
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
+    "iisExpress": {
+      "applicationUrl": "http://localhost:16974",
+      "sslPort": 0
+    }
+  },
+  "profiles": {
+    "Anthology": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "READARR_TOKEN": "6e8ec8a3862a477f93d4b873d4d2284b",
+        "BOOKFUNNEL_USERNAME": "igor.kaldowski@gmail.com",
+        "ANTHOLOGY_URL": "http://localhost:5054",
+        "BOOKFUNNEL_PASSWORD": "Kaldigo82",
+        "READARR_URL": "https://readarr.kaldigo.co.uk"
+      },
+      "applicationUrl": "http://localhost:5074",
+      "dotnetRunMessages": true
+    },
+    "IIS Express": {
+      "commandName": "IISExpress",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "Docker": {
+      "commandName": "Docker",
+      "launchBrowser": true,
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
+      "environmentVariables": {
+        "READARR_TOKEN": "6e8ec8a3862a477f93d4b873d4d2284b",
+        "BOOKFUNNEL_USERNAME": "igor.kaldowski@gmail.com",
+        "ANTHOLOGY_URL": "http://localhost:55000",
+        "BOOKFUNNEL_PASSWORD": "Kaldigo82",
+        "READARR_URL": "https://readarr.kaldigo.co.uk"
+      },
+      "publishAllPorts": true
+    }
+  }
+}
