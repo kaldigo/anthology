@@ -55,7 +55,7 @@
             {
                 <MudIcon Icon="@Icons.Filled.Check" Size="Size.Small" />
             }
-            else if (!@context.AudiobookGuildExists || !book.Authors.Any(a => AudiobookGuild.AGAuthors.Contains(a.Name)))
+            else if (!@context.AudiobookGuildExists || !@context.Authors.Any(a => AudiobookGuild.AGAuthors.Contains(a.Name)))
             {
                 <MudIcon Icon="@Icons.Filled.Close" Size="Size.Small" />
             }
