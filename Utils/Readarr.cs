@@ -64,7 +64,9 @@ namespace Anthology.Utils
                 var bookSeries = new Series();
                 if (string.IsNullOrEmpty(series)) series = item.Trim();
                 bookSeries.Name = series;
-                if (!String.IsNullOrEmpty(indexString)) bookSeries.Sequence = float.Parse(indexString);
+                float indexFloat;
+                float.TryParse(indexString, out indexFloat);
+                if (indexFloat != null) bookSeries.Sequence = indexFloat;
 
                 seriesDict.Add(bookSeries);
             }
