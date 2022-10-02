@@ -29,20 +29,27 @@ namespace Anthology.Utils
 
         public static Book GetBook(string grid)
         {
-            using (HttpClient client = new HttpClient())
+            try
             {
-                var url = Environment.GetEnvironmentVariable("READARR_URL") + "/api/v1/book/lookup?term=work:" + grid;
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Environment.GetEnvironmentVariable("READARR_TOKEN"));
-                var response = client.GetStringAsync(url).Result;
-                if (response != null)
+                using (HttpClient client = new HttpClient())
                 {
-                    var jsonString = JsonConvert.DeserializeObject<List<Book>>(response);
-                    return jsonString[0];
+                    var url = Environment.GetEnvironmentVariable("READARR_URL") + "/api/v1/book/lookup?term=work:" + grid;
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Environment.GetEnvironmentVariable("READARR_TOKEN"));
+                    var response = client.GetStringAsync(url).Result;
+                    if (response != null)
+                    {
+                        var jsonString = JsonConvert.DeserializeObject<List<Book>>(response);
+                        return jsonString[0];
+                    }
+                    else
+                    {
+                        return null;
+                    }
                 }
-                else
-                {
-                    return null;
-                }
+            }
+            catch (Exception ex)
+            {
+                return null;
             }
         }
 

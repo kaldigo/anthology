@@ -19,20 +19,27 @@ namespace Anthology.Utils
         };
         public static Book GetBook(string agid)
         {
-            using (HttpClient client = new HttpClient())
+            try
             {
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; AcmeInc/1.0)");
-                var url = "https://audiobookguild.com/products/" + agid + ".json";
-                var response = client.GetStringAsync(url).Result;
-                if (response != null)
+                using (HttpClient client = new HttpClient())
                 {
-                    var jsonString = JsonConvert.DeserializeObject<Root>(response);
-                    return jsonString.product;
+                    client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; AcmeInc/1.0)");
+                    var url = "https://audiobookguild.com/products/" + agid + ".json";
+                    var response = client.GetStringAsync(url).Result;
+                    if (response != null)
+                    {
+                        var jsonString = JsonConvert.DeserializeObject<Root>(response);
+                        return jsonString.product;
+                    }
+                    else
+                    {
+                        return null;
+                    }
                 }
-                else
-                {
-                    return null;
-                }
+            }
+            catch (Exception ex)
+            {
+                return null;
             }
         }
         public static List<string> Search(string title)

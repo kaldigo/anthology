@@ -41,15 +41,18 @@ namespace Anthology.Services
 
             if (dbBook.GRID != null)
             {
-                dataToFetch.Add("Goodreads", GetGoodreadsMetadata(dbBook.GRID));
+                var bookMetadata = GetGoodreadsMetadata(dbBook.GRID);
+                if(bookMetadata != null) dataToFetch.Add("Goodreads", bookMetadata);
             }
             if (dbBook.ASIN != null)
             {
-                dataToFetch.Add("Audible", GetAudibleMetadata(dbBook.ASIN));
+                var bookMetadata = GetAudibleMetadata(dbBook.ASIN);
+                if (bookMetadata != null) dataToFetch.Add("Audible", bookMetadata);
             }
             if (dbBook.AGID != null)
             {
-                dataToFetch.Add("AudiobookGuild", GetAudiobookGuildMetadata(dbBook.AGID));
+                var bookMetadata = GetAudiobookGuildMetadata(dbBook.AGID);
+                if (bookMetadata != null) dataToFetch.Add("AudiobookGuild", bookMetadata);
             }
 
             await Task.WhenAll(dataToFetch.Select(t => t.Value));
@@ -62,17 +65,23 @@ namespace Anthology.Services
 
         public static Task<Book> GetGoodreadsMetadata(string grid)
         {
-            return Task.FromResult(new Book(Readarr.GetBook(grid)));
+            var book = Readarr.GetBook(grid);
+            if (book == null) return null;
+            return Task.FromResult(new Book(book));
         }
 
         public static Task<Book> GetAudibleMetadata(string asin)
         {
-            return Task.FromResult(new Book(Audible.GetBook(asin)));
+            var book = Audible.GetBook(asin);
+            if(book == null) return null;
+            return Task.FromResult(new Book(book));
         }
 
         public static Task<Book> GetAudiobookGuildMetadata(string agid)
         {
-            return Task.FromResult(new Book(AudiobookGuild.GetBook(agid)));
+            var book = AudiobookGuild.GetBook(agid);
+            if (book == null) return null;
+            return Task.FromResult(new Book(book));
         }
 
         public static Book MergeMetadata(Dictionary<string,Book> sources, bool isAudiobook)

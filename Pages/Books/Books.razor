@@ -78,7 +78,7 @@
         <MudText Typo="Typo.h6">Add / Edit Books</MudText>
     </TitleContent>
     <DialogContent>
-        <MudContainer Style="max-height: 70vh; overflow-y: scroll">
+        <MudContainer MaxWidth="MaxWidth.False" Style="max-height: 70vh; overflow-y: scroll">
             <MudStack Row="true">
                 <MudTextField @bind-Value="book.ISBN" Label="ISBN" Variant="Variant.Text" Margin="Margin.Normal" Disabled="true" />
                 <MudTextField @bind-Value="book.Title" Label="Title" Variant="Variant.Text" Margin="Margin.Normal" />
@@ -215,7 +215,7 @@
                 </CardHeaderActions>
             </MudCardHeader>
             <MudCardContent>
-                <MudContainer Style="overflow-x: scroll">
+                <MudContainer MaxWidth="MaxWidth.False" Style="overflow-x: scroll">
                     <MudStack Row="true">
                         @foreach (var match in book.Matches(matchSource))
                         {
