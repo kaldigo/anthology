@@ -35,7 +35,7 @@ namespace Anthology.Utils
             metadata.Publisher = readarrBook.editions[0].publisher;
             metadata.PublishDate = readarrBook.releaseDate;
             metadata.Genres = readarrBook.genres;
-            metadata.Covers = readarrBook.editions.SelectMany(e => e.images.Select(i => i.url)).ToList();
+            metadata.Covers = readarrBook.editions.SelectMany(e => e.images.Select(i => i.url)).Take(10).ToList();
         }
         public static void ConvertAudibleBook(Book metadata, AudibleBook audibleBook)
         {
@@ -45,8 +45,18 @@ namespace Anthology.Utils
             metadata.Authors = audibleBook.authors.Select(a => a.name).ToList();
             metadata.Narrators = audibleBook.narrators.Select(n => n.name).ToList();
             metadata.Series = new List<Series>();
-            if (audibleBook.seriesPrimary != null) metadata.Series.Add(new Series() { Name = audibleBook.seriesPrimary.name, Sequence = float.Parse(audibleBook.seriesPrimary.position) });
-            if (audibleBook.seriesSecondary != null) metadata.Series.Add(new Series() { Name = audibleBook.seriesSecondary.name, Sequence = float.Parse(audibleBook.seriesSecondary.position) });
+            if (audibleBook.seriesPrimary != null)
+            {
+                float primarySeriesIndex;
+                float.TryParse(audibleBook.seriesPrimary.position, out primarySeriesIndex);
+                metadata.Series.Add(new Series() { Name = audibleBook.seriesPrimary.name, Sequence = primarySeriesIndex });
+            }
+            if (audibleBook.seriesSecondary != null)
+            {
+                float secondarySeriesIndex;
+                float.TryParse(audibleBook.seriesSecondary.position, out secondarySeriesIndex);
+                metadata.Series.Add(new Series() { Name = audibleBook.seriesSecondary.name, Sequence = secondarySeriesIndex });
+            }
             metadata.Description = audibleBook.summary;
             metadata.Publisher = audibleBook.publisherName;
             metadata.PublishDate = audibleBook.releaseDate;
