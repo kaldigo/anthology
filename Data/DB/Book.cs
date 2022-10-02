@@ -100,10 +100,12 @@ namespace Anthology.Data.DB
             if (Title == null) return new List<Match>();
 
             var searchIds = new List<string>();
+            string authorName = null;
+            if (this.Authors.Count > 0) authorName = this.Authors.First().Name;
             switch (source)
             {
                 case "Audible":
-                    searchIds = Utils.Audible.Search(this.Title);
+                    searchIds = Utils.Audible.Search(this.Title, authorName);
                     break;
                 case "AudiobookGuild":
                     searchIds = Utils.AudiobookGuild.Search(this.Title);

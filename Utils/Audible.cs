@@ -29,11 +29,12 @@ namespace Anthology.Utils
                 return null;
             }
         }
-        public static List<string> Search(string title)
+        public static List<string> Search(string title, string author = null)
         {
             using (HttpClient client = new HttpClient())
             {
                 var url = "https://api.audible.com//1.0/catalog/products?num_results=25&products_sort_by=Relevance&title=" + title;
+                if(author != null) url = url + "&author=" + author;
                 var response = client.GetStringAsync(url).Result;
                 if (response != null)
                 {
