@@ -91,7 +91,7 @@ namespace Anthology.Services
 
             if (isAudiobook) metadata.Narrators = MetadataUtils.SelectListString("Narrators", sources, isAudiobook);
 
-            metadata.Series = MetadataUtils.SelectSeries("Series", sources, isAudiobook);
+            metadata.Series = MetadataUtils.SelectSeries("Series", sources, false);
 
             metadata.Description = MetadataUtils.SelectString("Description", sources, isAudiobook);
 
