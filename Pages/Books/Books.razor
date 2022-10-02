@@ -5,6 +5,7 @@
 @using Anthology.Data
 @using Anthology.Data.DB
 @using Anthology.Services
+@using Anthology.Utils
 @inject Anthology.Services.IBookService bookService
 @inject MudBlazor.ISnackbar snackBar
 
@@ -20,6 +21,8 @@
         <MudSpacer />
         <MudIconButton Icon="@Icons.Material.Outlined.Add" @onclick="NewBook" />
         <MudIconButton Icon="@Icons.Filled.ArrowDownward" @onclick="ImportBooks" />
+        <MudSpacer />
+        <MudSwitch @bind-Checked="@filterUnmatched" Color="Color.Primary" Label="Hide Matched" LabelPosition="LabelPosition.Start" />
         <MudSpacer />
         <MudTextField @bind-Value="searchString" Placeholder="Search for Books..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
     </ToolBarContent>
@@ -193,20 +196,20 @@
             <MudCardContent>
                 <MudContainer Style="overflow-x: scroll">
                     <MudStack Row="true">
-                    @foreach (var match in book.Matches(matchSource))
-                    {
-                        <MudCard Style="width: 300px;flex-shrink: 0;">
-                            <MudCardMedia Image="@match.Image" Height="300" />
-                            <MudCardContent>
-                                <MudText Typo="Typo.h5">@match.Title</MudText>
-                                <MudText Typo="Typo.h6">@match.Identifier</MudText>
-                                <MudText Typo="Typo.body1">@match.Authors</MudText>
-                                <MudText Typo="Typo.body1">@match.Series</MudText>
-                            </MudCardContent>
-                            <MudCardActions>
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="@(() => MatchBook(match.Identifier))">Select Match</MudButton>
-                            </MudCardActions>
-                        </MudCard>
+                        @foreach (var match in book.Matches(matchSource))
+                        {
+                            <MudCard Style="width: 300px;flex-shrink: 0;">
+                                <MudCardMedia Image="@match.Image" Height="300" />
+                                <MudCardContent>
+                                    <MudText Typo="Typo.h5">@match.Title</MudText>
+                                    <MudText Typo="Typo.h6">@match.Identifier</MudText>
+                                    <MudText Typo="Typo.body1">@match.Authors</MudText>
+                                    <MudText Typo="Typo.body1">@match.Series</MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="@(() => MatchBook(match.Identifier))">Select Match</MudButton>
+                                </MudCardActions>
+                            </MudCard>
                         }
                     </MudStack>
                 </MudContainer>
@@ -218,6 +221,7 @@
 
 @code {
     private string searchString = "";
+    private bool filterUnmatched = false;
     private Book book = new Book();
     private List<Book> books = new List<Book>();
     string DeleteItemIcon = Icons.Filled.Delete;
@@ -247,6 +251,12 @@
 
     private bool Search(Book book)
     {
+        if (filterUnmatched &&
+            (!string.IsNullOrWhiteSpace(book.ASIN) || !book.AudibleExists) && // ASIN Is Matched
+            (!string.IsNullOrWhiteSpace(book.AGID) || !book.AudiobookGuildExists || !book.Authors.Any(a => AudiobookGuild.AGAuthors.Contains(a.Name)))) // AGID Is Matched
+        {
+            return false;
+        }
         if (string.IsNullOrWhiteSpace(searchString)) return true;
         if (book.Title.Contains(searchString, StringComparison.OrdinalIgnoreCase)
             || (book.Subtitle != null && book.Subtitle.Contains(searchString, StringComparison.OrdinalIgnoreCase))
@@ -382,15 +392,15 @@
     private void Match(string source, string isbn)
     {
         matchSource = source;
-        book = books.FirstOrDefault(b => b.ISBN == isbn); 
+        book = books.FirstOrDefault(b => b.ISBN == isbn);
         matchVisible = true;
     }
-    
+
 
     protected async Task SetNone()
     {
-        if(matchSource == "Audible") book.AudibleExists = false;
-        if(matchSource == "AudiobookGuild") book.AudiobookGuildExists = false;        
+        if (matchSource == "Audible") book.AudibleExists = false;
+        if (matchSource == "AudiobookGuild") book.AudiobookGuildExists = false;
         bookService.SaveBook(book);
         matchVisible = false;
         book = new Book();
@@ -400,8 +410,8 @@
 
     protected async Task MatchBook(string bookIdentifier)
     {
-        if(matchSource == "Audible") book.ASIN = bookIdentifier;
-        if (matchSource == "AudiobookGuild") book.AGID = bookIdentifier;        
+        if (matchSource == "Audible") book.ASIN = bookIdentifier;
+        if (matchSource == "AudiobookGuild") book.AGID = bookIdentifier;
         bookService.SaveBook(book);
         matchVisible = false;
         book = new Book();
