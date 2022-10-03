@@ -155,5 +155,12 @@ namespace Anthology.Data.DB
 
             return searchBooks;
         }
+
+        public bool InLibrary()
+        {
+            var libraryBook = Anthology.Services.AudiobookShelfService.GetBookDetails(ISBN);
+            if (libraryBook == null) return false;
+            return true;
+        }
     }
 }
