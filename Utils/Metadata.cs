@@ -30,7 +30,7 @@ namespace Anthology.Utils
         {
             metadata.Title = readarrBook.title;
             metadata.Authors = new List<string>() { { readarrBook.author.authorName } };
-            metadata.Series = Readarr.ExtractSeries(readarrBook.seriesTitle.Split(";").ToList());
+            if(!string.IsNullOrWhiteSpace(readarrBook.seriesTitle)) metadata.Series = Readarr.ExtractSeries(readarrBook.seriesTitle.Split(";").ToList());
             metadata.Description = readarrBook.overview;
             metadata.Publisher = readarrBook.editions[0].publisher;
             metadata.PublishDate = readarrBook.releaseDate;
