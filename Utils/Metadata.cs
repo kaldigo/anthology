@@ -71,7 +71,7 @@ namespace Anthology.Utils
             metadata.Authors = audiobookGuildBook.GetTags("Author");
             metadata.Narrators = audiobookGuildBook.GetTags("Narrator");
             metadata.Series = audiobookGuildBook.GetTags("Series").Select(s => new Series() { Name = s }).ToList();
-            metadata.Description = Regex.Unescape(audiobookGuildBook.body_html);
+            metadata.Description = Regex.Replace(Regex.Unescape(audiobookGuildBook.body_html), "<.*?>", String.Empty).Replace("\u00A0", "").Replace("OVERVIEW:", "").Replace("Looking for the ebook? Find it on Amazon", "").Trim( '\r', '\n' );
             metadata.Publisher = String.Join(", ", audiobookGuildBook.GetTags("Author"));
             metadata.PublishDate = audiobookGuildBook.published_at;
             metadata.Genres = audiobookGuildBook.GetTags("Genre");
