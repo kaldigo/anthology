@@ -9,6 +9,8 @@ namespace Anthology.Services
     {
         public static Task<List<Book>> Search(string title, string? author, string? isbn, string? asin, bool isAudiobook)
         {
+            if (title.Substring(0, 4) == "ANTH") isbn = title;
+
             if (isbn != null && isbn.Substring(0, 4) == "ANTH")
             {
                 var searchISBN = MetadataService.GetBookMetadata(isbn, isAudiobook, asin).Result;
