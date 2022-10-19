@@ -56,6 +56,7 @@ namespace Anthology.Utils
                     book.ID = node.Attributes["data-id"].Value;
                     book.Title = node.SelectSingleNode(".//span[contains(@class, 'title')]").InnerText;
                     book.Author = node.SelectSingleNode(".//span[contains(@class, 'author')]").InnerText;
+                    book.ImageURL = node.SelectSingleNode(".//img[contains(@class, 'library-cover')]").GetAttributeValue("src", "");
                     book.DateAdded = DateTime.Now.AddSeconds(-int.Parse(node.SelectSingleNode(".//span[contains(@class, 'added')]").InnerText));
                     books.Add(book);
                 }

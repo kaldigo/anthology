@@ -27,7 +27,7 @@
             {
                 <MudItem Style="width: 212px; padding: 6px;">
                     <MudCard Style="width: 200px">
-                        <MudCardMedia Image="@book.GetImageURL()" Height="200" Style="background-size: contain;" />
+                        <MudCardMedia Image="@book.ImageURL" Height="200" Style="background-size: contain;" />
                         <MudCardActions>
                             @if (!book.Downloaded || book.Extracted)
                             {

@@ -66,9 +66,15 @@ namespace Anthology.Services
 
                     var booksToAdd = booksLive.Where(b => !_dbContext.BookFunnelItems.Select(i => i.ID).Contains(b.ID));
                     var booksToRemove = _dbContext.BookFunnelItems.Where(b => !booksLive.Select(i => i.ID).Contains(b.ID));
+                    var booksToUpdate = _dbContext.BookFunnelItems.Where(b => booksLive.Select(i => i.ID).Contains(b.ID) && string.IsNullOrWhiteSpace(b.ImageURL));
 
                     _dbContext.BookFunnelItems.AddRange(booksToAdd);
                     _dbContext.BookFunnelItems.RemoveRange(booksToRemove);
+
+                    foreach (var book in booksToUpdate)
+                    {
+                        book.ImageURL = booksLive.First(b => b.ID == book.ID).ImageURL;
+                    }
 
                     _dbContext.SaveChanges();
                 });
