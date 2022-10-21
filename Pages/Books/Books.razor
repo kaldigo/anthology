@@ -7,6 +7,7 @@
 @using Anthology.Services
 @using Anthology.Utils
 @inject Anthology.Services.IBookService bookService
+@inject Anthology.Services.IAudiobookShelfService audiobookshelfService
 @inject MudBlazor.ISnackbar snackBar
 
 <h3>Match:</h3>
@@ -51,7 +52,7 @@
     </HeaderContent>
     <RowTemplate>
         <MudTd DataLabel="InLibrary">
-            @if (@context.InLibrary())
+            @if (audiobookshelfService.IsBookInLibrary(@context.ISBN))
             {
                 <MudIcon Icon="@Icons.Filled.Circle" Color="Color.Success" />
             }
@@ -104,8 +105,8 @@
         <MudContainer MaxWidth="MaxWidth.False" Style="max-height: 70vh; overflow-y: scroll">
             <MudStack Row="true">
                 <MudTextField @bind-Value="book.ISBN" Label="ISBN" Variant="Variant.Text" Margin="Margin.Normal" Disabled="true" />
-                <MudTextField @bind-Value="book.Title" Label="Title" Variant="Variant.Text" Margin="Margin.Normal" />
-                <MudTextField @bind-Value="book.Subtitle" Label="Title" Variant="Variant.Text" Margin="Margin.Normal" />
+                <MudTextField @bind-Value="book.Title" Label="Title" Variant="Variant.Text" Margin="Margin.Normal" HelperText="@bookMetadata.Title" />
+                <MudTextField @bind-Value="book.Subtitle" Label="Subtitle" Variant="Variant.Text" Margin="Margin.Normal"  HelperText="@bookMetadata.Subtitle" />
             </MudStack>
 
             <MudText Typo="Typo.body1">Authors</MudText>
@@ -116,6 +117,7 @@
                 }
                 <MudIconButton Icon="@Icons.Filled.Add" Color="Color.Primary" OnClick="@(() => AddItem("Author"))">Add Author</MudIconButton>
             </MudStack>
+            <MudText Typo="Typo.caption">@String.Join(", ", bookMetadata.Authors)</MudText>
 
             <MudText Typo="Typo.body1">Narrators</MudText>
             <MudStack Row="true">
@@ -125,6 +127,7 @@
                 }
                 <MudIconButton Icon="@Icons.Filled.Add" Color="Color.Primary" OnClick="@(() => AddItem("Narrator"))">Add Narrator</MudIconButton>
             </MudStack>
+            <MudText Typo="Typo.caption">@String.Join(", ", bookMetadata.Narrators)</MudText>
 
             <MudText Typo="Typo.body1">Series</MudText>
             <MudStack Row="true">
@@ -136,12 +139,13 @@
                 }
                 <MudIconButton Icon="@Icons.Filled.Add" Color="Color.Primary" OnClick="@(() => AddItem("Series"))">Add Series</MudIconButton>
             </MudStack>
+            <MudText Typo="Typo.caption">@String.Join(", ", bookMetadata.Series.Select(s => s.Name + ": " + s.Sequence))</MudText>
 
-            <MudTextField @bind-Value="book.Description" Label="Description" Variant="Variant.Text" Margin="Margin.Normal" Lines="5" />
+            <MudTextField @bind-Value="book.Description" Label="Description" Variant="Variant.Text" Margin="Margin.Normal" Lines="5" HelperText="@bookMetadata.Description" />
             <MudStack Row="true">
-                <MudTextField @bind-Value="book.Publisher" Label="Publisher" Variant="Variant.Text" Margin="Margin.Normal" />
-                <MudTextField @bind-Value="book.PublishDate" Label="Publish Date" Variant="Variant.Text" Margin="Margin.Normal" InputType="InputType.Date" />
-                <MudTextField @bind-Value="book.Language" Label="Language" Variant="Variant.Text" Margin="Margin.Normal" />
+                <MudTextField @bind-Value="book.Publisher" Label="Publisher" Variant="Variant.Text" Margin="Margin.Normal" HelperText="@bookMetadata.Publisher" />
+                <MudTextField @bind-Value="book.PublishDate" Label="Publish Date" Variant="Variant.Text" Margin="Margin.Normal" InputType="InputType.Date" HelperText="@bookMetadata.PublishDate.ToString()" />
+                <MudTextField @bind-Value="book.Language" Label="Language" Variant="Variant.Text" Margin="Margin.Normal" HelperText="@bookMetadata.Language" />
             </MudStack>
 
             <MudText Typo="Typo.body1">Genres</MudText>
@@ -162,7 +166,7 @@
                 <MudIconButton Icon="@Icons.Filled.Add" Color="Color.Primary" OnClick="@(() => AddItem("Tag"))">Add Tag</MudIconButton>
             </MudStack>
 
-            <MudCheckBox @bind-Checked="book.IsExplicit" Label="Is Explicit" />
+            <MudCheckBox @bind-Checked="book.IsExplicit" Label="Is Explicit"> <MudText Typo="Typo.caption">@bookMetadata.IsExplicit.ToString()</MudText></MudCheckBox>
             <MudTextField @bind-Value="book.GRID" Label="GRID" Variant="Variant.Text" Margin="Margin.Normal" />
             <MudTextField @bind-Value="book.ASIN" Label="ASIN" Variant="Variant.Text" Margin="Margin.Normal" />
             <MudCheckBox @bind-Checked="book.AudibleExists" Label="Audible Exists" />
@@ -271,6 +275,7 @@
     private LibraryFilterEnum libraryFilter = LibraryFilterEnum.All;
 
     private Book book = new Book();
+    private Data.Metadata.Book bookMetadata = new Data.Metadata.Book();
     private List<Book> books = new List<Book>();
     string DeleteItemIcon = Icons.Filled.Delete;
 
@@ -317,8 +322,8 @@
         if (authorFilter == AuthorFilterEnum.Audible && book.Authors.Any(a => AudiobookGuild.AGAuthors.Contains(a.Name))) return false;
         if (authorFilter == AuthorFilterEnum.AudiobookGuild && !book.Authors.Any(a => AudiobookGuild.AGAuthors.Contains(a.Name))) return false;
         
-        if (libraryFilter == LibraryFilterEnum.Exist && !book.InLibrary()) return false;
-        if (libraryFilter == LibraryFilterEnum.Missing && book.InLibrary()) return false;
+        if (libraryFilter == LibraryFilterEnum.Exist && !audiobookshelfService.IsBookInLibrary(book.ISBN)) return false;
+        if (libraryFilter == LibraryFilterEnum.Missing && audiobookshelfService.IsBookInLibrary(book.ISBN)) return false;
 
         if (string.IsNullOrWhiteSpace(searchString)) return true;
         if (book.Title.Contains(searchString, StringComparison.OrdinalIgnoreCase)
@@ -343,12 +348,14 @@
     private void Edit(string isbn)
     {
         book = books.FirstOrDefault(b => b.ISBN == isbn);
+        bookMetadata = bookService.GetBookMetadata(isbn, true);
         editVisible = true;
     }
 
     private void NewBook()
     {
         book = new Book();
+        bookMetadata = new Data.Metadata.Book();
         editVisible = true;
     }
 

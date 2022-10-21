@@ -8,6 +8,7 @@ namespace Anthology.Services
     {
         List<Book> GetBooks();
         Book GetBookByISBN(string isbn);
+        Data.Metadata.Book GetBookMetadata(string isbn, bool isAudiobook);
         void SaveBook(Book book);
         void DeleteBook(string isbn);
     }
@@ -83,6 +84,11 @@ namespace Anthology.Services
         {
             var book = _dbContext.Books.SingleOrDefault(x => x.ISBN == isbn);
             return book;
+        }
+
+        public Data.Metadata.Book GetBookMetadata(string isbn, bool isAudiobook)
+        {
+            return MetadataService.GetBookMetadata(isbn, isAudiobook).Result;
         }
         public void SaveBook(Book book)
         {

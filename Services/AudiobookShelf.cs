@@ -5,7 +5,12 @@ using System.Net.Http.Headers;
 
 namespace Anthology.Services
 {
-    public class AudiobookShelfService
+    public interface IAudiobookShelfService
+    {
+        Result GetBookDetails(string isbn);
+        bool IsBookInLibrary(string isbn);
+    }
+    public class AudiobookShelfService : IAudiobookShelfService
     {
         private static Task _task;
 
@@ -45,11 +50,17 @@ namespace Anthology.Services
             }
         }
 
-        public static Result GetBookDetails(string isbn)
+        public Result GetBookDetails(string isbn)
         {
             if (_lastUpdated == null || _lastUpdated.AddMinutes(1) < DateTime.Now) GetBookList();
             if(_bookList == null) return null;
             return _bookList.FirstOrDefault(b => b.media.metadata.isbn == isbn);
+        }
+        public bool IsBookInLibrary(string isbn)
+        {
+            var libraryBook = GetBookDetails(isbn);
+            if (libraryBook == null) return false;
+            return true;
         }
     }
 }

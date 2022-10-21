@@ -9,7 +9,7 @@ namespace Anthology.Services
     {
         public static Task<List<Book>> Search(string title, string? author, string? isbn, string? asin, bool isAudiobook)
         {
-            if (title.Substring(0, 4) == "ANTH") isbn = title;
+            if (title.Length > 4 && title.Substring(0, 4) == "ANTH") isbn = title;
 
             if (isbn != null && isbn.Substring(0, 4) == "ANTH")
             {

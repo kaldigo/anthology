@@ -18,6 +18,7 @@ builder.Services.AddMudServices();
 builder.Services.AddScoped<IBookService, BookService>();
 builder.Services.AddScoped<IClassificationService, ClassificationService>();
 builder.Services.AddScoped<IBookFunnelService, BookFunnelService>();
+builder.Services.AddScoped<IAudiobookShelfService, AudiobookShelfService>();
 
 var app = builder.Build();
 
