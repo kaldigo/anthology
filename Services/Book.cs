@@ -8,74 +8,14 @@ namespace Anthology.Services
     {
         List<Book> GetBooks();
         Book GetBookByISBN(string isbn);
-        Data.Metadata.Book GetBookMetadata(string isbn, bool isAudiobook);
         void SaveBook(Book book);
         void DeleteBook(string isbn);
+        void GetMissingBookMetadata();
+        void RefreshMetadata(Book book);
     }
     public class BookService: IBookService
     {
         private static readonly DatabaseContext _dbContext = new DatabaseContext();
-        public static Task<List<Book>> FetchBooks()
-        {
-            var context = new DatabaseContext();
-            var bookList = context.Books.ToList();
-            return Task.FromResult(bookList);
-        }
-        public static Task<List<Book>> FetchBooksToMatch(string source, int numberToTake, int numberToSkip)
-        {
-            var context = new DatabaseContext();
-            List<Book>? bookList;
-            switch (source)
-            {
-                case "Audible":
-                    bookList = context.Books.Where(b => b.AudibleExists && (b.ASIN == null || string.IsNullOrEmpty(b.ASIN))).ToList();
-                    break;
-                case "AudiobookGuild":
-                    bookList = context.Books.Where(b => b.AudiobookGuildExists && (b.AGID == null || string.IsNullOrEmpty(b.AGID)) && b.Authors.Any(a => AudiobookGuild.AGAuthors.Contains(a.Name))).ToList();
-                    break;
-                default:
-                    bookList = context.Books.ToList();
-                    break;
-            }
-
-            bookList = bookList
-                .Skip(numberToSkip)
-                .Take(numberToTake)
-                .ToList();
-
-            return Task.FromResult(bookList);
-        }
-        public static async Task<List<Book>> Get()
-        {
-            var books = await _dbContext.Books.ToListAsync();
-            return books;
-        }
-
-        public static async Task<Book> Get(string isbn)
-        {
-            var book = await _dbContext.Books.FirstOrDefaultAsync(a => a.ISBN == isbn);
-            return book;
-        }
-
-        public static async Task<string> Post(Book book)
-        {
-            _dbContext.Add(book);
-            await _dbContext.SaveChangesAsync();
-            return book.ISBN;
-        }
-
-        public static async Task Put(Book book)
-        {
-            _dbContext.Entry(book).State = EntityState.Modified;
-            await _dbContext.SaveChangesAsync();
-        }
-
-        public static async Task Delete(string isbn)
-        {
-            var book = new Book { ISBN = isbn };
-            _dbContext.Remove(book);
-            await _dbContext.SaveChangesAsync();
-        }
         public List<Book> GetBooks()
         {
             return _dbContext.Books.ToList();
@@ -85,20 +25,27 @@ namespace Anthology.Services
             var book = _dbContext.Books.SingleOrDefault(x => x.ISBN == isbn);
             return book;
         }
-
-        public Data.Metadata.Book GetBookMetadata(string isbn, bool isAudiobook)
-        {
-            return MetadataService.GetBookMetadata(isbn, isAudiobook).Result;
-        }
         public void SaveBook(Book book)
         {
+            var updateMetadata = false;
             if (book.ISBN == null)
             {
                 book.ISBN = Book.GenerateId(_dbContext);
                 _dbContext.Books.Add(book);
+                updateMetadata = true;
             }
-            else _dbContext.Books.Update(book);
+            else
+            {
+                var dbBook = _dbContext.Books.SingleOrDefault(x => x.ISBN == book.ISBN);
+                if(
+                    dbBook.GRID != book.GRID || 
+                    dbBook.ASIN != book.ASIN ||
+                    dbBook.AGID != book.AGID ) 
+                    updateMetadata = true;
+                _dbContext.Books.Update(book);
+            }
             _dbContext.SaveChanges();
+            if(updateMetadata) MetadataService.RefreshBookMetadata(book, _dbContext);
         }
         public void DeleteBook(string isbn)
         {
@@ -108,6 +55,17 @@ namespace Anthology.Services
                 _dbContext.Books.Remove(book);
                 _dbContext.SaveChanges();
             }
+        }
+        public void GetMissingBookMetadata()
+        {
+            foreach (var book in _dbContext.Books.Where(b => b.DateFetchedMetadata == null || b.DateFetchedMetadata > DateTime.Now.AddDays(30)))
+            {
+                MetadataService.RefreshBookMetadata(book, _dbContext);
+            }
+        }
+        public void RefreshMetadata(Book book)
+        {
+            MetadataService.RefreshBookMetadata(book, _dbContext);
         }
     }
 }

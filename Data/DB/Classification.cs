@@ -17,7 +17,8 @@ namespace Anthology.Data.DB
         public enum ClassificationType
         {
             Genre,
-            Tag
+            Tag,
+            Hidden
         }
         public static List<Classification> GetClassification(List<string> rawData, DatabaseContext? context = null)
         {

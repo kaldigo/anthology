@@ -23,7 +23,7 @@
     </MudCardHeader>
     <MudCardContent>
         <MudGrid>
-            @foreach (var book in GetBooks())
+            @foreach (var book in books)
             {
                 <MudItem Style="width: 212px; padding: 6px;">
                     <MudCard Style="width: 200px">
@@ -66,10 +66,10 @@
         GetBooks();
     }
 
-    private List<BookFunnel> GetBooks()
+    private void GetBooks()
     {
         books = bookFunnelService.GetBooks();
-        return books;
+        StateHasChanged();
     }
 
     private bool Search(BookFunnel book)

@@ -23,10 +23,10 @@ namespace Anthology.Services
             }
 
             var context = new DatabaseContext();
-            var books = context.Books.Where(b => b.Title.Contains(title) || title.Contains(b.Title)).Select(b => GetBookMetadata(b.ISBN, isAudiobook, null).Result).ToList();
+            var books = context.Books.Where(b => b.Title.Contains(title) || title.Contains(b.Title)).Select(b => GetBookMetadata(b.ISBN, isAudiobook, null, false).Result).ToList();
             return Task.FromResult(books);
         }
-        public static async Task<Book?> GetBookMetadata(string isbn, bool isAudiobook, string? asin = null)
+        public static async Task<Book?> GetBookMetadata(string isbn, bool isAudiobook, string? asin = null, bool forceRefresh = false)
         {
             var context = new DatabaseContext();
 
@@ -39,12 +39,32 @@ namespace Anthology.Services
                 context.SaveChanges();
             }
 
+            if(dbBook.DateFetchedMetadata == null || dbBook.DateFetchedMetadata  > DateTime.Now.AddDays(30) || forceRefresh) 
+                RefreshBookMetadata(dbBook, context);
+
+            Dictionary<string, Book> dataToMerge = new Dictionary<string, Book>();
+            dataToMerge.Add("Override", new Book(dbBook));
+            if(isAudiobook) dataToMerge.Add("Metadata", dbBook.AudioBookMetadata);
+            else dataToMerge.Add("Metadata", dbBook.BookMetadata);
+
+            return MergeMetadata(dataToMerge, isAudiobook);
+        }
+        public static void RefreshBookMetadata(Data.DB.Book dbBook,DatabaseContext context = null)
+        {
+            if(context == null) context = new DatabaseContext();
+            dbBook.BookMetadata = FetchBookMetadata(dbBook, false, true).Result;
+            dbBook.AudioBookMetadata = FetchBookMetadata(dbBook, true, true).Result;
+            dbBook.DateFetchedMetadata = DateTime.Now;
+            context.SaveChanges();
+        }
+        public static async Task<Book?> FetchBookMetadata(Data.DB.Book dbBook, bool isAudiobook, bool ignoreOveride)
+        {
             Dictionary<string, Task<Book>> dataToFetch = new Dictionary<string, Task<Book>>();
 
             if (dbBook.GRID != null)
             {
                 var bookMetadata = GetGoodreadsMetadata(dbBook.GRID);
-                if(bookMetadata != null) dataToFetch.Add("Goodreads", bookMetadata);
+                if (bookMetadata != null) dataToFetch.Add("Goodreads", bookMetadata);
             }
             if (dbBook.ASIN != null)
             {
@@ -62,7 +82,7 @@ namespace Anthology.Services
             Dictionary<string, Book> dataToMerge = dataToFetch.ToDictionary(d => d.Key, d => d.Value.Result);
             dataToMerge.Add("Override", new Book(dbBook));
 
-            return MergeMetadata(dataToMerge, isAudiobook);
+            return MergeMetadata(dataToMerge, isAudiobook, ignoreOveride);
         }
 
         public static Task<Book> GetGoodreadsMetadata(string grid)
@@ -86,33 +106,33 @@ namespace Anthology.Services
             return Task.FromResult(new Book(book));
         }
 
-        public static Book MergeMetadata(Dictionary<string,Book> sources, bool isAudiobook)
+        public static Book MergeMetadata(Dictionary<string,Book> sources, bool isAudiobook, bool ignoreOveride = false)
         {
             var metadata = new Book();
 
-            metadata.ISBN = MetadataUtils.SelectString("ISBN", sources, false);
+            metadata.ISBN = MetadataUtils.SelectString("ISBN", sources, false, ignoreOveride);
 
-            metadata.ASIN = MetadataUtils.SelectString("ASIN", sources, isAudiobook);
+            metadata.ASIN = MetadataUtils.SelectString("ASIN", sources, isAudiobook, ignoreOveride);
 
-            metadata.Title = MetadataUtils.SelectString("Title", sources, isAudiobook);
+            metadata.Title = MetadataUtils.SelectString("Title", sources, isAudiobook, ignoreOveride);
 
-            metadata.Subtitle = MetadataUtils.SelectString("Subtitle", sources, isAudiobook);
+            metadata.Subtitle = MetadataUtils.SelectString("Subtitle", sources, isAudiobook, ignoreOveride);
 
-            metadata.Authors = MetadataUtils.SelectListString("Authors", sources, isAudiobook);
+            metadata.Authors = MetadataUtils.SelectListString("Authors", sources, isAudiobook, ignoreOveride);
 
-            if (isAudiobook) metadata.Narrators = MetadataUtils.SelectListString("Narrators", sources, isAudiobook);
+            if (isAudiobook) metadata.Narrators = MetadataUtils.SelectListString("Narrators", sources, isAudiobook, ignoreOveride);
 
-            metadata.Series = MetadataUtils.SelectSeries("Series", sources, false);
+            metadata.Series = MetadataUtils.SelectSeries("Series", sources, false, ignoreOveride);
 
-            metadata.Description = MetadataUtils.SelectString("Description", sources, isAudiobook);
+            metadata.Description = MetadataUtils.SelectString("Description", sources, isAudiobook, ignoreOveride);
 
-            metadata.Publisher = MetadataUtils.SelectString("Publisher", sources, isAudiobook);
+            metadata.Publisher = MetadataUtils.SelectString("Publisher", sources, isAudiobook, ignoreOveride);
 
-            metadata.PublishDate = MetadataUtils.SelectDateTime("PublishDate", sources, isAudiobook);
+            metadata.PublishDate = MetadataUtils.SelectDateTime("PublishDate", sources, isAudiobook, ignoreOveride);
 
             var rawClassificationList = new List<string>();
-            rawClassificationList.AddRange(MetadataUtils.CombineListString("Genres", sources));
-            rawClassificationList.AddRange(MetadataUtils.CombineListString("Tags", sources));
+            rawClassificationList.AddRange(MetadataUtils.CombineListString("Genres", sources, ignoreOveride));
+            rawClassificationList.AddRange(MetadataUtils.CombineListString("Tags", sources, ignoreOveride));
 
             var classificationList = Classification.GetClassification(rawClassificationList);
 
@@ -122,13 +142,13 @@ namespace Anthology.Services
             if (metadata.Tags == null) metadata.Tags = new List<string>();
             metadata.Tags = classificationList.Where(c => c.Type == Classification.ClassificationType.Tag).Select(c => c.Name).ToList();
 
-            metadata.Language = MetadataUtils.SelectString("Language", sources, isAudiobook);
+            metadata.Language = MetadataUtils.SelectString("Language", sources, isAudiobook, ignoreOveride);
 
-            metadata.IsExplicit = MetadataUtils.SelectBool("IsExplicit", sources, isAudiobook);
+            metadata.IsExplicit = MetadataUtils.SelectBool("IsExplicit", sources, isAudiobook, ignoreOveride);
             if (!metadata.IsExplicit && metadata.Genres != null) metadata.IsExplicit = classificationList.Any(c => c.Name.ToLower() == "adult" || c.Name.ToLower() == "erotica" || c.Name.ToLower() == "explicit");
 
             if (metadata.Covers == null) metadata.Covers = new List<string>();
-            metadata.Covers = MetadataUtils.CombineListString("Covers", sources);
+            metadata.Covers = MetadataUtils.CombineListString("Covers", sources, ignoreOveride);
 
             return metadata;
 

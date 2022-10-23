@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Newtonsoft.Json;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.RegularExpressions;
 
@@ -11,6 +12,7 @@ namespace Anthology.Data.DB
         public string ISBN { get; set; }
         public string? Title { get; set; }
         public string? Subtitle { get; set; }
+        public bool SubtitleLock { get; set; } = false;
         public virtual List<BookAuthor> Authors { get; set; } = new List<BookAuthor>();
         public virtual List<BookNarrator> Narrators { get; set; } = new List<BookNarrator>();
         public virtual List<BookSeries> Series { get; set; } = new List<BookSeries>();
@@ -29,6 +31,33 @@ namespace Anthology.Data.DB
         public bool AudibleExists { get; set; } = true;
         public string? AGID { get; set; }
         public bool AudiobookGuildExists { get; set; } = true;
+        public string BookMetadataJson { get; set; }
+        [NotMapped]
+        public Metadata.Book BookMetadata
+        {
+            get
+            {
+                return string.IsNullOrWhiteSpace(BookMetadataJson) ? new Metadata.Book() : JsonConvert.DeserializeObject<Metadata.Book>(BookMetadataJson);
+            }
+            set
+            {
+                BookMetadataJson = JsonConvert.SerializeObject(value);
+            }
+        }
+        public string AudioBookMetadataJson { get; set; }
+        [NotMapped]
+        public Metadata.Book AudioBookMetadata
+        {
+            get
+            {
+                return string.IsNullOrWhiteSpace(AudioBookMetadataJson) ? new Metadata.Book() : JsonConvert.DeserializeObject<Metadata.Book>(AudioBookMetadataJson);
+            }
+            set
+            {
+                AudioBookMetadataJson = JsonConvert.SerializeObject(value);
+            }
+        }
+        public DateTime? DateFetchedMetadata { get; set; }
         public object this[string PropertyName]
         {
             get

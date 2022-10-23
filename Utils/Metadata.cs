@@ -16,7 +16,7 @@ namespace Anthology.Utils
             metadata.Subtitle = dbBook.Subtitle;
             metadata.Authors = dbBook.Authors.Select(a => a.Name).ToList();
             metadata.Narrators = dbBook.Narrators.Select(n => n.Name).ToList();
-            metadata.Series = dbBook.Series.Select(s => new Series() { Name = s.Name, Sequence = s.Sequence}).ToList();
+            metadata.Series = dbBook.Series.Select(s => new Series() { Name = s.Name, Sequence = s.Sequence }).ToList();
             metadata.Description = dbBook.Description;
             metadata.Publisher = dbBook.Publisher;
             metadata.PublishDate = dbBook.PublishDate;
@@ -25,12 +25,12 @@ namespace Anthology.Utils
             metadata.Language = dbBook.Language;
             metadata.IsExplicit = dbBook.IsExplicit;
             metadata.Covers = dbBook.BookCovers.Select(c => c.GetUrl()).ToList();
-    }
+        }
         public static void ConvertReadarrBook(Book metadata, ReadarrBook readarrBook)
         {
             metadata.Title = readarrBook.title;
             metadata.Authors = new List<string>() { { readarrBook.author.authorName } };
-            if(!string.IsNullOrWhiteSpace(readarrBook.seriesTitle)) metadata.Series = Readarr.ExtractSeries(readarrBook.seriesTitle.Split(";").ToList());
+            if (!string.IsNullOrWhiteSpace(readarrBook.seriesTitle)) metadata.Series = Readarr.ExtractSeries(readarrBook.seriesTitle.Split(";").ToList());
             metadata.Description = readarrBook.overview;
             metadata.Publisher = readarrBook.editions[0].publisher;
             metadata.PublishDate = readarrBook.releaseDate;
@@ -71,20 +71,24 @@ namespace Anthology.Utils
             metadata.Authors = audiobookGuildBook.GetTags("Author");
             metadata.Narrators = audiobookGuildBook.GetTags("Narrator");
             metadata.Series = audiobookGuildBook.GetTags("Series").Select(s => new Series() { Name = s }).ToList();
-            metadata.Description = Regex.Replace(Regex.Unescape(audiobookGuildBook.body_html).Replace("<br>", "\n"), "<.*?>", String.Empty).Replace("\u00A0", " ").Replace("OVERVIEW:", "").Replace("Looking for the ebook?", "").Replace("Find it on Amazon", "").Trim().Trim( '\r', '\n', ' ' ).Trim();
+            metadata.Description = Regex.Replace(Regex.Unescape(audiobookGuildBook.body_html).Replace("<br>", "\n"), "<.*?>", String.Empty).Replace("\u00A0", " ").Replace("OVERVIEW:", "").Replace("Looking for the ebook?", "").Replace("Find it on Amazon", "").Trim().Trim('\r', '\n', ' ').Trim();
             metadata.Publisher = String.Join(", ", audiobookGuildBook.GetTags("Author"));
             metadata.PublishDate = audiobookGuildBook.published_at;
             metadata.Genres = audiobookGuildBook.GetTags("Genre");
             metadata.Tags = audiobookGuildBook.GetTags("Trope");
             metadata.Covers = audiobookGuildBook.images.Select(i => Regex.Unescape(i.src)).ToList();
         }
-        public static string SelectString(string field, Dictionary<string, Book> sources, bool isAudiobookField = false)
+        public static string SelectString(string field, Dictionary<string, Book> sources, bool isAudiobookField = false, bool ignoreOveride = false)
         {
             string combinedValue = null;
 
-            if(sources["Override"][field] != null && !string.IsNullOrWhiteSpace((string)sources["Override"][field]))
+            if (!ignoreOveride && (sources.ContainsKey("Override") && sources["Override"][field] != null && !string.IsNullOrWhiteSpace((string)sources["Override"][field])) || (sources["Override"][field + "Lock"] != null && (bool)sources["Override"][field + "Lock"] == true))
             {
                 combinedValue = (string)sources["Override"][field];
+            }
+            else if (sources.ContainsKey("Metadata") && sources["Metadata"] != null && sources["Metadata"][field] != null && !string.IsNullOrWhiteSpace((string)sources["Metadata"][field]))
+            {
+                combinedValue = (string)sources["Metadata"][field];
             }
             else if (isAudiobookField)
             {
@@ -101,13 +105,17 @@ namespace Anthology.Utils
 
             return combinedValue;
         }
-        public static bool SelectBool(string field, Dictionary<string, Book> sources, bool isAudiobookField = false)
+        public static bool SelectBool(string field, Dictionary<string, Book> sources, bool isAudiobookField = false, bool ignoreOveride = false)
         {
             bool combinedValue = false;
 
-            if (sources["Override"] != null && (bool)sources["Override"][field])
+            if (!ignoreOveride && sources.ContainsKey("Override") && sources["Override"] != null && (bool)sources["Override"][field])
             {
                 combinedValue = (bool)sources["Override"][field];
+            }
+            else if (sources.ContainsKey("Metadata") && sources["Metadata"] != null && (bool)sources["Metadata"][field])
+            {
+                combinedValue = (bool)sources["Metadata"][field];
             }
             else if (isAudiobookField)
             {
@@ -124,13 +132,17 @@ namespace Anthology.Utils
 
             return combinedValue;
         }
-        public static List<string> SelectListString(string field, Dictionary<string, Book> sources, bool isAudiobookField = false)
+        public static List<string> SelectListString(string field, Dictionary<string, Book> sources, bool isAudiobookField = false, bool ignoreOveride = false)
         {
             List<string> combinedValue = new List<string>();
 
-            if (sources["Override"] != null && (List<string>)sources["Override"][field] != null && ((List<string>)sources["Override"][field]).Count != 0)
+            if (!ignoreOveride && sources.ContainsKey("Override") && sources["Override"] != null && (List<string>)sources["Override"][field] != null && ((List<string>)sources["Override"][field]).Count != 0)
             {
                 combinedValue = (List<string>)sources["Override"][field];
+            }
+            else if (sources.ContainsKey("Metadata") && sources["Metadata"] != null && (List<string>)sources["Metadata"][field] != null && ((List<string>)sources["Metadata"][field]).Count != 0)
+            {
+                combinedValue = (List<string>)sources["Metadata"][field];
             }
             else if (isAudiobookField)
             {
@@ -147,13 +159,17 @@ namespace Anthology.Utils
 
             return combinedValue;
         }
-        public static DateTime? SelectDateTime(string field, Dictionary<string, Book> sources, bool isAudiobookField = false)
+        public static DateTime? SelectDateTime(string field, Dictionary<string, Book> sources, bool isAudiobookField = false, bool ignoreOveride = false)
         {
             DateTime? combinedValue = null;
 
-            if (sources["Override"] != null && sources["Override"][field] != null)
+            if (!ignoreOveride && sources.ContainsKey("Override") && sources["Override"] != null && sources["Override"][field] != null)
             {
                 combinedValue = (DateTime?)sources["Override"][field];
+            }
+            else if (sources.ContainsKey("Metadata") && sources["Metadata"] != null && sources["Metadata"][field] != null)
+            {
+                combinedValue = (DateTime?)sources["Metadata"][field];
             }
             else if (isAudiobookField)
             {
@@ -170,13 +186,17 @@ namespace Anthology.Utils
 
             return combinedValue;
         }
-        public static List<Series> SelectSeries(string field, Dictionary<string, Book> sources, bool isAudiobookField = false)
+        public static List<Series> SelectSeries(string field, Dictionary<string, Book> sources, bool isAudiobookField = false, bool ignoreOveride = false)
         {
             List<Series> combinedValue = new List<Series>();
 
-            if (sources["Override"] != null && (List<Series>)sources["Override"][field] != null && ((List<Series>)sources["Override"][field]).Count != 0)
+            if (!ignoreOveride && sources.ContainsKey("Override") && sources["Override"] != null && (List<Series>)sources["Override"][field] != null && ((List<Series>)sources["Override"][field]).Count != 0)
             {
                 combinedValue = (List<Series>)sources["Override"][field];
+            }
+            else if (sources.ContainsKey("Metadata") && sources["Metadata"] != null && (List<Series>)sources["Metadata"][field] != null && ((List<Series>)sources["Metadata"][field]).Count != 0)
+            {
+                combinedValue = (List<Series>)sources["Metadata"][field];
             }
             else if (isAudiobookField)
             {
@@ -193,17 +213,18 @@ namespace Anthology.Utils
 
             return combinedValue;
         }
-        public static List<string> CombineListString(string field, Dictionary<string, Book> sources)
+        public static List<string> CombineListString(string field, Dictionary<string, Book> sources, bool ignoreOveride = false)
         {
             List<string> combinedValue = new List<string>();
 
-            if (sources["Override"] != null && (List<string>)sources["Override"][field] != null && ((List<string>)sources["Override"][field]).Count != 0) combinedValue.AddRange((List<string>)sources["Override"][field]);
+            if (!ignoreOveride && sources.ContainsKey("Override") &&  sources["Override"] != null && (List<string>)sources["Override"][field] != null && ((List<string>)sources["Override"][field]).Count != 0) combinedValue.AddRange((List<string>)sources["Override"][field]);
+            if (sources.ContainsKey("Metadata") && sources["Metadata"] != null && (List<string>)sources["Metadata"][field] != null && ((List<string>)sources["Metadata"][field]).Count != 0) combinedValue.AddRange((List<string>)sources["Metadata"][field]);
             if (sources.ContainsKey("Goodreads") && sources["Goodreads"] != null && (List<string>)sources["Goodreads"][field] != null && ((List<string>)sources["Goodreads"][field]).Count != 0) combinedValue.AddRange((List<string>)sources["Goodreads"][field]);
             if (sources.ContainsKey("Audible") && sources["Audible"] != null && (List<string>)sources["Audible"][field] != null && ((List<string>)sources["Audible"][field]).Count != 0) combinedValue.AddRange((List<string>)sources["Audible"][field]);
             if (sources.ContainsKey("AudiobookGuild") && sources["AudiobookGuild"] != null && (List<string>)sources["AudiobookGuild"][field] != null && ((List<string>)sources["AudiobookGuild"][field]).Count != 0) combinedValue.AddRange((List<string>)sources["AudiobookGuild"][field]);
 
             return combinedValue;
         }
-        
+
     }
 }

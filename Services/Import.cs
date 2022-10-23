@@ -30,6 +30,10 @@ namespace Anthology.Services
 
                     context.Books.AddRange(booksToAdd);
                     context.SaveChanges();
+                    foreach (var book in booksToAdd)
+                    {
+                        MetadataService.RefreshBookMetadata(book, context);
+                    }
                 });
 
                 _task.Wait();

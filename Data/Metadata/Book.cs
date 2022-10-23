@@ -29,6 +29,7 @@ namespace Anthology.Data.Metadata
             {
                 Type myType = typeof(Book);
                 System.Reflection.PropertyInfo pi = myType.GetProperty(PropertyName);
+                if(pi == null) return null;
                 return pi.GetValue(this, null); //not indexed property!
             }
             set
