@@ -31,7 +31,7 @@ namespace Anthology.Data.DB
         public bool AudibleExists { get; set; } = true;
         public string? AGID { get; set; }
         public bool AudiobookGuildExists { get; set; } = true;
-        public string BookMetadataJson { get; set; }
+        public string? BookMetadataJson { get; set; }
         [NotMapped]
         public Metadata.Book BookMetadata
         {
@@ -44,7 +44,7 @@ namespace Anthology.Data.DB
                 BookMetadataJson = JsonConvert.SerializeObject(value);
             }
         }
-        public string AudioBookMetadataJson { get; set; }
+        public string? AudioBookMetadataJson { get; set; }
         [NotMapped]
         public Metadata.Book AudioBookMetadata
         {

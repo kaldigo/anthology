@@ -36,7 +36,7 @@ namespace Anthology.Services
             }
             else
             {
-                var dbBook = _dbContext.Books.SingleOrDefault(x => x.ISBN == book.ISBN);
+                var dbBook = new DatabaseContext().Books.SingleOrDefault(x => x.ISBN == book.ISBN);
                 if(
                     dbBook.GRID != book.GRID || 
                     dbBook.ASIN != book.ASIN ||

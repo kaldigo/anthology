@@ -39,7 +39,7 @@ namespace Anthology.Services
                 context.SaveChanges();
             }
 
-            if(dbBook.DateFetchedMetadata == null || dbBook.DateFetchedMetadata  > DateTime.Now.AddDays(30) || forceRefresh) 
+            if(dbBook.DateFetchedMetadata == null  || dbBook.DateFetchedMetadata  > DateTime.Now.AddDays(30) || forceRefresh) 
                 RefreshBookMetadata(dbBook, context);
 
             Dictionary<string, Book> dataToMerge = new Dictionary<string, Book>();

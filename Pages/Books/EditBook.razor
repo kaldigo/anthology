@@ -12,12 +12,12 @@
                         <MudStack Style="width:50%" Spacing="0">
                             <MudTextField @bind-Value="book.Title" Label="Title" Variant="Variant.Text" Margin="Margin.Dense" />
                             <MudText Typo="Typo.caption">@("Book: " + book.BookMetadata.Title)</MudText>
-                            <MudText Typo="Typo.caption">@("Audiobook: " + book.BookMetadata.Title)</MudText>
+                            <MudText Typo="Typo.caption">@("Audiobook: " + book.AudioBookMetadata.Title)</MudText>
                         </MudStack>
                         <MudStack Style="width:50%" Spacing="0">
                             <MudTextField @bind-Value="book.Subtitle" Label="Subtitle" Variant="Variant.Text" Margin="Margin.Dense" />
                             <MudText Typo="Typo.caption">@("Book: " + book.BookMetadata.Subtitle)</MudText>
-                            <MudText Typo="Typo.caption">@("Audiobook: " + book.BookMetadata.Subtitle)</MudText>
+                            <MudText Typo="Typo.caption">@("Audiobook: " + book.AudioBookMetadata.Subtitle)</MudText>
                         </MudStack>
                     </MudStack>
 
@@ -32,13 +32,13 @@
 
                                 <MudChip Size="Size.Small" OnClick="@(() => AddStringItem("Author"))">+</MudChip>
                             </MudChipSet>
-                            <MudText Typo="Typo.caption">@("Book: " + String.Join(", ", book.AudioBookMetadata.Authors))</MudText>
+                            <MudText Typo="Typo.caption">@("Book: " + String.Join(", ", book.BookMetadata.Authors))</MudText>
                             <MudText Typo="Typo.caption">@("Audiobook: " + String.Join(", ", book.AudioBookMetadata.Authors))</MudText>
                         </MudStack>
                         <MudStack Style="width:25%" Spacing="0">
                             <MudTextField @bind-Value="book.PublishDate" Label="Publish Date" Variant="Variant.Text" Margin="Margin.Dense" InputType="InputType.Date" />
                             <MudText Typo="Typo.caption">@("Book: " + book.BookMetadata.PublishDate)</MudText>
-                            <MudText Typo="Typo.caption">@("Audiobook: " + book.BookMetadata.PublishDate)</MudText>
+                            <MudText Typo="Typo.caption">@("Audiobook: " + book.AudioBookMetadata.PublishDate)</MudText>
                         </MudStack>
                     </MudStack>
 
@@ -53,7 +53,7 @@
 
                                 <MudChip Size="Size.Small" OnClick="@AddSeriesItem">+</MudChip>
                             </MudChipSet>
-                            <MudText Typo="Typo.caption">@("Book: " + String.Join(", ", book.AudioBookMetadata.Series.Select(s => s.Name + ": " + s.Sequence)))</MudText>
+                            <MudText Typo="Typo.caption">@("Book: " + String.Join(", ", book.BookMetadata.Series.Select(s => s.Name + ": " + s.Sequence)))</MudText>
                             <MudText Typo="Typo.caption">@("Audiobook: " + String.Join(", ", book.AudioBookMetadata.Series.Select(s => s.Name + ": " + s.Sequence)))</MudText>
                         </MudStack>
                     </MudStack>
@@ -62,7 +62,7 @@
                         <MudStack Style="width:100%" Spacing="0">
                             <MudTextField @bind-Value="book.Description" Label="Description" Variant="Variant.Text" Margin="Margin.Dense" Lines="5" />
                             <MudText Typo="Typo.caption">@("Book: " + book.BookMetadata.Description)</MudText>
-                            <MudText Typo="Typo.caption">@("Audiobook: " + book.BookMetadata.Description)</MudText>
+                            <MudText Typo="Typo.caption">@("Audiobook: " + book.AudioBookMetadata.Description)</MudText>
                         </MudStack>
                     </MudStack>
 
@@ -77,7 +77,7 @@
 
                                 <MudChip Size="Size.Small" OnClick="@(() => AddStringItem("Genre"))">+</MudChip>
                             </MudChipSet>
-                            <MudText Typo="Typo.caption">@("Book: " + String.Join(", ", book.AudioBookMetadata.Genres))</MudText>
+                            <MudText Typo="Typo.caption">@("Book: " + String.Join(", ", book.BookMetadata.Genres))</MudText>
                             <MudText Typo="Typo.caption">@("Audiobook: " + String.Join(", ", book.AudioBookMetadata.Genres))</MudText>
                         </MudStack>
                         <MudStack Style="width:50%" Spacing="0">
@@ -90,7 +90,7 @@
 
                                 <MudChip Size="Size.Small" OnClick="@(() => AddStringItem("Tag"))">+</MudChip>
                             </MudChipSet>
-                            <MudText Typo="Typo.caption">@("Book: " + String.Join(", ", book.AudioBookMetadata.Tags))</MudText>
+                            <MudText Typo="Typo.caption">@("Book: " + String.Join(", ", book.BookMetadata.Tags))</MudText>
                             <MudText Typo="Typo.caption">@("Audiobook: " + String.Join(", ", book.AudioBookMetadata.Tags))</MudText>
                         </MudStack>
                     </MudStack>
@@ -106,18 +106,18 @@
 
                                 <MudChip Size="Size.Small" OnClick="@(() => AddStringItem("Narrator"))">+</MudChip>
                             </MudChipSet>
-                            <MudText Typo="Typo.caption">@("Book: " + String.Join(", ", book.AudioBookMetadata.Narrators))</MudText>
+                            <MudText Typo="Typo.caption">@("Book: " + String.Join(", ", book.BookMetadata.Narrators))</MudText>
                             <MudText Typo="Typo.caption">@("Audiobook: " + String.Join(", ", book.AudioBookMetadata.Narrators))</MudText>
                         </MudStack>
                         <MudStack Style="width:25%" Spacing="0">
                             <MudTextField @bind-Value="book.Publisher" Label="Publisher" Variant="Variant.Text" Margin="Margin.Dense" />
                             <MudText Typo="Typo.caption">@("Book: " + book.BookMetadata.Publisher)</MudText>
-                            <MudText Typo="Typo.caption">@("Audiobook: " + book.BookMetadata.Publisher)</MudText>
+                            <MudText Typo="Typo.caption">@("Audiobook: " + book.AudioBookMetadata.Publisher)</MudText>
                         </MudStack>
                         <MudStack Style="width:25%" Spacing="0">
                             <MudTextField @bind-Value="book.Language" Label="Language" Variant="Variant.Text" Margin="Margin.Dense" />
                             <MudText Typo="Typo.caption">@("Book: " + book.BookMetadata.Language)</MudText>
-                            <MudText Typo="Typo.caption">@("Audiobook: " + book.BookMetadata.Language)</MudText>
+                            <MudText Typo="Typo.caption">@("Audiobook: " + book.AudioBookMetadata.Language)</MudText>
                         </MudStack>
                     </MudStack>
 
@@ -134,7 +134,7 @@
                         <MudStack Style="width:25%" Spacing="0">
                             <MudCheckBox @bind-Checked="book.IsExplicit" Label="Is Explicit" />
                             <MudText Typo="Typo.caption">@("Book: " + book.BookMetadata.IsExplicit.ToString())</MudText>
-                            <MudText Typo="Typo.caption">@("Audiobook: " + book.BookMetadata.IsExplicit.ToString())</MudText>
+                            <MudText Typo="Typo.caption">@("Audiobook: " + book.AudioBookMetadata.IsExplicit.ToString())</MudText>
                         </MudStack>
                     </MudStack>
                 </MudContainer>
