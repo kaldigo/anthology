@@ -15,7 +15,7 @@ namespace Anthology.Services
     }
     public class BookService: IBookService
     {
-        private static readonly DatabaseContext _dbContext = new DatabaseContext();
+        private readonly DatabaseContext _dbContext = new DatabaseContext();
         public List<Book> GetBooks()
         {
             return _dbContext.Books.ToList();
@@ -37,7 +37,15 @@ namespace Anthology.Services
             else
             {
                 var dbBook = new DatabaseContext().Books.SingleOrDefault(x => x.ISBN == book.ISBN);
-                if(
+                if(string.IsNullOrWhiteSpace(dbBook.GRID) && !string.IsNullOrWhiteSpace(book.GRID))
+                {
+                    var goodreadsBook = Utils.Readarr.GetBook(book.GRID);
+                    book.Title = goodreadsBook.title;
+                    book.Authors = new List<BookAuthor>() { new BookAuthor() { Name = goodreadsBook.author.authorName } };
+                    updateMetadata = true;
+                    _dbContext.Books.Update(book);
+                }
+                else if(
                     dbBook.GRID != book.GRID || 
                     dbBook.ASIN != book.ASIN ||
                     dbBook.AGID != book.AGID ) 

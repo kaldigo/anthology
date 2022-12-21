@@ -1,4 +1,5 @@
 ﻿using Anthology.Data.AudiobookShelf;
+using Anthology.Data.Readarr;
 using Anthology.Utils;
 using Newtonsoft.Json;
 using System.Net.Http.Headers;
@@ -9,6 +10,7 @@ namespace Anthology.Services
     {
         Result GetBookDetails(string isbn);
         bool IsBookInLibrary(string isbn);
+        public IEnumerable<Result> GetMissingBooks(IEnumerable<string> isbnList);
     }
     public class AudiobookShelfService : IAudiobookShelfService
     {
@@ -61,6 +63,10 @@ namespace Anthology.Services
             var libraryBook = GetBookDetails(isbn);
             if (libraryBook == null) return false;
             return true;
+        }
+        public IEnumerable<Result> GetMissingBooks(IEnumerable<string> isbnList)
+        {
+            return _bookList.Where(b => !isbnList.Contains(b.media.metadata.isbn));
         }
     }
 }

@@ -26,7 +26,7 @@ namespace Anthology.Data.DB
         public virtual List<BookCover> BookCovers { get; set; } = new List<BookCover>();
         public virtual List<AudiobookCover> AudiobookCovers { get; set; } = new List<AudiobookCover>();
         public virtual List<BookImage> Images { get; set; } = new List<BookImage>();
-        public string GRID { get; set; }
+        public string? GRID { get; set; }
         public string? ASIN { get; set; }
         public bool AudibleExists { get; set; } = true;
         public string? AGID { get; set; }
@@ -74,7 +74,7 @@ namespace Anthology.Data.DB
             }
         }
         public Book() { }
-        public Book(string title, string author, string goodreadsId, DatabaseContext? context = null)
+        public Book(string title, string author, string? goodreadsId = null, DatabaseContext? context = null)
         {
             if (context == null) context = new DatabaseContext();
 
@@ -83,7 +83,7 @@ namespace Anthology.Data.DB
             this.Authors = new List<BookAuthor>() { { new BookAuthor(author) } };
             this.GRID = goodreadsId;
         }
-        public Book(string title, List<string> authors, string goodreadsId, DatabaseContext? context = null)
+        public Book(string title, List<string> authors, string? goodreadsId = null, DatabaseContext? context = null)
         {
             if (context == null) context = new DatabaseContext();
 
@@ -133,6 +133,9 @@ namespace Anthology.Data.DB
             if (this.Authors.Count > 0) authorName = this.Authors.First().Name;
             switch (source)
             {
+                case "Goodreads":
+                    searchIds = Utils.Readarr.Search(this.Title, authorName);
+                    break;
                 case "Audible":
                     searchIds = Utils.Audible.Search(this.Title, authorName);
                     break;
@@ -144,6 +147,24 @@ namespace Anthology.Data.DB
             var searchBooks = new List<Match>();
             switch (source)
             {
+                case "Goodreads":
+                    foreach (var grid in searchIds)
+                    {
+                        var bookDetails = Utils.Readarr.GetBook(grid);
+                        if (bookDetails != null)
+                        {
+                            searchBooks.Add(
+                                new Match()
+                                {
+                                    Identifier = bookDetails.foreignBookId,
+                                    Title = bookDetails.title,
+                                    Authors = bookDetails.author.authorName,
+                                    Series = !string.IsNullOrWhiteSpace(bookDetails.seriesTitle) ? String.Join(", ", Utils.Readarr.ExtractSeries(bookDetails.seriesTitle.Split(";").ToList()).Select(s => s.Name + " #" + s.Sequence)) : null,
+                                    Image = bookDetails.editions.SelectMany(e => e.images.Select(i => i.url)).First()
+                                });
+                        }
+                    }
+                    break;
                 case "Audible":
                     foreach (var asin in searchIds)
                     {

@@ -52,6 +52,25 @@ namespace Anthology.Utils
                 return null;
             }
         }
+        public static List<string> Search(string title, string author = null)
+        {
+            using (HttpClient client = new HttpClient())
+            {
+                var url = Environment.GetEnvironmentVariable("READARR_URL") + "/api/v1/book/lookup?term=" + title;
+                if (author != null) url = url + " " + author;
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Environment.GetEnvironmentVariable("READARR_TOKEN"));
+                var response = client.GetStringAsync(url).Result;
+                if (response != null)
+                {
+                    var jsonString = JsonConvert.DeserializeObject<List<Book>>(response);
+                    return jsonString.Select(b => b.foreignBookId).ToList();
+                }
+                else
+                {
+                    return null;
+                }
+            }
+        }
 
         public static List<Series> ExtractSeries(List<string> seriesList)
         {
