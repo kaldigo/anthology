@@ -118,7 +118,7 @@ namespace Anthology.Services
 
             metadata.Subtitle = MetadataUtils.SelectString("Subtitle", sources, isAudiobook, ignoreOveride);
 
-            metadata.Authors = MetadataUtils.SelectListString("Authors", sources, true, ignoreOveride);
+            metadata.Authors = MetadataUtils.SelectListString("Authors", sources, true, true);
 
             if (isAudiobook) metadata.Narrators = MetadataUtils.SelectListString("Narrators", sources, isAudiobook, ignoreOveride);
 
