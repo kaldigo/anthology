@@ -1,0 +1,121 @@
+﻿@using MudBlazor.Utilities
+@using Anthology.Data
+
+<div class="d-flex flex-column mud-width-full">
+    <MudDropContainer T="DropItem" Items="@_dropzoneItems" @ref="_container" ItemsSelector="@((item, dropzone) => item.Selector == dropzone)" ItemDropped="ItemUpdated" Class="d-flex flex-wrap">
+        <ChildContent>
+            <MudPaper Class="d-flex ma-2 flex-grow-1">
+                <MudText Typo="Typo.button" Class="ma-4 align-self-center" Style="width: 120px;">@FieldName</MudText>
+                <MudDropZone T="DropItem" Identifier="@FieldName" Class="d-flex flex-wrap flex-grow-1 pa-2 rounded" AllowReorder="true">
+                </MudDropZone>
+                @if (ShowMerge)
+                {
+                    <MudSwitch @bind-Checked="@Merge" Label="Merge" LabelPosition="LabelPosition.Start" Color="Color.Primary" Class="ma-4" />
+                }
+            </MudPaper>
+        </ChildContent>
+        <ItemRenderer>
+            <MudChip Color="Color.Primary" Size="Size.Medium">
+                @($"{context.Name} ({context.Order})")
+            </MudChip>
+        </ItemRenderer>
+    </MudDropContainer>
+</div>
+
+@code {
+    public List<SourcePriority> _sources { get; set; }
+    [Parameter]
+    public List<SourcePriority> Sources
+    {
+        get => _sources;
+        set
+        {
+            if (_sources == value) return;
+            _sources = value;
+            SourcesChanged.InvokeAsync(value);
+        }
+    }
+    [Parameter]
+    public EventCallback<List<SourcePriority>> SourcesChanged { get; set; }
+
+
+    public bool _merge { get; set; }
+    [Parameter]
+    public bool Merge
+    {
+        get => _merge;
+        set
+        {
+            if (_merge == value) return;
+            _merge = value;
+            MergeChanged.InvokeAsync(value);
+            Save();
+        }
+    }
+    [Parameter] 
+    public EventCallback<bool> MergeChanged { get; set; }
+
+    [Parameter] 
+    public bool ShowMerge { get; set; } = false;
+    [Parameter] 
+    public string FieldName { get; set; }
+    [Parameter] 
+    public EventCallback SaveSettings { get; set; }
+
+    private MudDropContainer<DropItem> _container;
+
+    private List<DropItem> _dropzoneItems { get; set; }
+    private List<DropItem> _serverData { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        List<DropItem> newdata = new List<DropItem>();
+        foreach (var item in Sources.OrderBy(s => s.Priority).Select((sourcePriority, i) => new { i, sourcePriority }))
+        {
+            Sources.First(s => s.ID == item.sourcePriority.ID).Priority = item.i;
+            newdata.Add(new DropItem() { ID = item.sourcePriority.ID, Order = item.sourcePriority.Priority, Name = item.sourcePriority.Name, Selector = FieldName });
+        }
+        _dropzoneItems = newdata;
+        _serverData = newdata;
+    }
+
+    private void Save()
+    {
+        SaveSettings.InvokeAsync();
+    }
+
+    private void ItemUpdated(MudItemDropInfo<DropItem> dropItem)
+    {
+        dropItem.Item.Selector = dropItem.DropzoneIdentifier;
+
+        var indexOffset = dropItem.DropzoneIdentifier switch
+        {
+            "2" => _serverData.Count(x => x.Selector == "1"),
+            _ => 0,
+        };
+
+        _serverData.UpdateOrder(dropItem, item => item.Order, indexOffset);
+        foreach (var source in Sources)
+        {
+            source.Priority = _serverData.First(s => s.ID == source.ID).Order;
+        }
+        Save();
+    }
+
+    private void RefreshContainer()
+    {
+        //update the binding to the container
+        StateHasChanged();
+
+        //the container refreshes the internal state
+        _container.Refresh();
+    }
+
+    public class DropItem
+    {
+        public Guid ID { get; set; }
+        public string Name { get; init; }
+        public string Selector { get; set; }
+        public int Order { get; set; }
+    }
+}

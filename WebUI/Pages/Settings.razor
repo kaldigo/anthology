@@ -1,0 +1,62 @@
+﻿@page "/Settings"
+@using Anthology.Data
+@using Anthology.WebUI.Components
+
+<PageTitle>Settings</PageTitle>
+
+@inject Anthology.Services.ISettingsService settingsService
+@inject MudBlazor.ISnackbar snackBar
+
+<MudText Typo="Typo.h3">Settings</MudText>
+
+@if (settings == null)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudText Typo="Typo.h5">Field Priorities</MudText>
+
+    <PriorityDropzone FieldName="Title" Sources="@settings.FieldPriorities.Title" SaveSettings="@Save" />
+    <PriorityDropzone FieldName="Subtitle" Sources="@settings.FieldPriorities.Subtitle" SaveSettings="@Save" />
+    <PriorityDropzone FieldName="Authors" Sources="@settings.FieldPriorities.Authors" SaveSettings="@Save" />
+    <PriorityDropzone FieldName="Narrators" Sources="@settings.FieldPriorities.Narrators" SaveSettings="@Save" />
+    <PriorityDropzone FieldName="Series" Sources="@settings.FieldPriorities.Series" SaveSettings="@Save" />
+    <PriorityDropzone FieldName="Description" Sources="@settings.FieldPriorities.Description" SaveSettings="@Save" />
+    <PriorityDropzone FieldName="Publisher" Sources="@settings.FieldPriorities.Publisher" SaveSettings="@Save" />
+    <PriorityDropzone FieldName="PublishDate" Sources="@settings.FieldPriorities.PublishDate" SaveSettings="@Save" />
+    <PriorityDropzone FieldName="Genres" Sources="@settings.FieldPriorities.Genres" ShowMerge="true" Merge="@settings.FieldPriorities.MergeGenres" SaveSettings="@Save" />
+    <PriorityDropzone FieldName="Tags" Sources="@settings.FieldPriorities.Tags" ShowMerge="true" Merge="@settings.FieldPriorities.MergeTags" SaveSettings="@Save" />
+    <PriorityDropzone FieldName="Language" Sources="@settings.FieldPriorities.Language" SaveSettings="@Save" />
+    <PriorityDropzone FieldName="IsExplicit" Sources="@settings.FieldPriorities.IsExplicit" SaveSettings="@Save" />
+    <PriorityDropzone FieldName="Covers" @bind-Sources="settings.FieldPriorities.Covers" ShowMerge="true" @bind-Merge="@settings.FieldPriorities.MergeCovers" SaveSettings="@Save" />
+
+    <MudDivider DividerType="DividerType.Middle" Class="my-2" />
+
+    <MudText Typo="Typo.h5">Plugins</MudText>
+    @foreach (var plugin in settings.PluginSettings.Where(p => p.Settings.Any()).OrderBy(p => p.PluginName))
+    {
+        <MudText Typo="Typo.h6">@plugin.PluginName</MudText>
+        @foreach (var pluginSetting in plugin.Settings)
+        {
+            <MudTextField @bind-Value="pluginSetting.Value" Label="@pluginSetting.Key" Variant="Variant.Filled" Margin="Margin.Dense" OnBlur="Save"></MudTextField>
+        }
+    }
+    <MudDivider DividerType="DividerType.Middle" Class="my-2" />
+}
+
+@code
+{
+    private Data.Settings settings = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        settings = (Data.Settings)settingsService.GetSettings().Clone();
+        StateHasChanged();
+    }
+
+    private void Save()
+    {
+        settingsService.SaveSettings(settings);
+    }
+}
