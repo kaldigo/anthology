@@ -7,7 +7,7 @@ namespace Anthology.Data
     {
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         [Key]
-        public Guid ID { get; set; }
+        public Guid ID { get; set; } = new Guid();
         public string Name { get; set; }
         public ClassificationType Type { get; set; }
         public virtual List<ClassificationAlias> Aliases { get; set; } = new List<ClassificationAlias>();

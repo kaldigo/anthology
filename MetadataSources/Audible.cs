@@ -42,7 +42,7 @@ namespace Anthology.Plugins.MetadataSources
             }
         }
 
-        public List<Metadata> Search(Dictionary<string, string> settings, string title, string author = null)
+        public List<MetadataSearchResult> Search(Dictionary<string, string> settings, string title, string author = null)
         {
             using (HttpClient client = new HttpClient())
             {
@@ -53,11 +53,11 @@ namespace Anthology.Plugins.MetadataSources
                 {
                     var jsonString = JsonConvert.DeserializeObject<dynamic>(response);
 
-                    var searchResults = new List<Metadata>();
+                    var searchResults = new List<MetadataSearchResult>();
                     foreach (var result in jsonString.products)
                     {
                         string resultAsin = result.asin;
-                        searchResults.Add(GetMetadata(resultAsin, settings));
+                        searchResults.Add(new MetadataSearchResult(){ Key = IdentifierKey, Identifier = resultAsin, Metadata = GetMetadata(resultAsin, settings)});
                     }
 
                     return searchResults;

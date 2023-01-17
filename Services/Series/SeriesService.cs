@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Anthology.Plugins.Models;
 
 namespace Anthology.Services
 {
@@ -21,6 +22,21 @@ namespace Anthology.Services
         public List<Series> GetSeries()
         {
             return _context.Series.ToList();
+        }
+
+        public List<Series> GetAllSeries(Metadata metadata = null)
+        {
+            var seriesList = _context.Series.ToList();
+            var bookMetadata = _context.Books.Select(b => b.BookMetadata).ToList();
+            if(metadata != null) bookMetadata.Add(metadata);
+            var metadataSeriesList = bookMetadata.SelectMany(b => b.Series).ToList();
+            foreach (var metadataSeries in metadataSeriesList)
+            {
+                var series = seriesList.FirstOrDefault(s =>
+                    s.Name == metadataSeries.Name || s.Aliases.Any(a => a.Name == metadataSeries.Name));
+                if (series == null) seriesList.Add(new Series() { Name = metadataSeries.Name });
+            }
+            return seriesList;
         }
 
         public Series GetSeries(Guid guid)

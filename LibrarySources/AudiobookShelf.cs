@@ -6,6 +6,8 @@ using System.Linq;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
+using Anthology.Plugins.Models;
+using static Anthology.Plugins.Models.Metadata;
 
 namespace Anthology.Plugins.LibrarySources
 {
@@ -59,6 +61,7 @@ namespace Anthology.Plugins.LibrarySources
             if (_bookList == null) return null;
             return _bookList.FirstOrDefault(b => b.media.metadata.isbn == isbn);
         }
+
         public bool IsBookInLibrary(string isbn, Dictionary<string, string> settings)
         {
             var libraryBook = GetBookDetails(isbn, settings);

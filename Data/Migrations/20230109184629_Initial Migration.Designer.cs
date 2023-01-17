@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Anthology.Data.Migrations
 {
     [DbContext(typeof(DatabaseContext))]
-    [Migration("20230102030930_Initial Migration")]
+    [Migration("20230109184629_Initial Migration")]
     partial class InitialMigration
     {
         /// <inheritdoc />
@@ -59,7 +59,7 @@ namespace Anthology.Data.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("IsExplicit")
+                    b.Property<bool?>("IsExplicit")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Language")
@@ -114,12 +114,14 @@ namespace Anthology.Data.Migrations
                     b.Property<string>("BookISBN")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("Exists")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Value")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("ID");
@@ -156,10 +158,6 @@ namespace Anthology.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("BookISBN")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Sequence")
@@ -530,6 +528,24 @@ namespace Anthology.Data.Migrations
                     b.HasIndex("FieldPrioritiesID9");
 
                     b.ToTable("SourcePriority");
+                });
+
+            modelBuilder.Entity("Anthology.Data.TempImage", b =>
+                {
+                    b.Property<Guid>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("TempPath")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("ID");
+
+                    b.ToTable("TempImages");
                 });
 
             modelBuilder.Entity("BookPerson", b =>

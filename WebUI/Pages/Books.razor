@@ -1,0 +1,81 @@
+﻿@page "/Books"
+@using Anthology.WebUI.Components.LibraryViews
+@using Anthology.WebUI.Components.Modals
+
+@inject Anthology.Services.IBookService _bookService
+@inject MudBlazor.ISnackbar _snackBar
+@inject MudBlazor.IDialogService _dialog
+
+<PageTitle>Books</PageTitle>
+
+<MudPaper Elevation="25">
+    <MudToolBar>
+        <MudIconButton Icon="@Icons.Material.Outlined.Add" OnClick="@(() => ShowAddEditBookDialog(new Data.Book(), true))" />
+        <MudSpacer />
+        <MudIconButton Icon="@Icons.Material.Outlined.MoreVert" Color="Color.Inherit" />
+    </MudToolBar>
+</MudPaper>
+@if (BookList == null)
+{
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else if (View == BookViewEnum.Grid)
+{
+    <Grid Books="@FilteredBookList" EditBookDialog="@ShowAddEditBookDialog" />
+}
+
+@code
+{
+    private BookViewEnum View { get; set; } = BookViewEnum.Grid;
+
+    private List<Data.Book> BookList { get; set; }
+
+    private List<Data.Book> FilteredBookList => FilterBookList();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (firstRender)
+        {
+            await LoadData();
+
+        }
+    }
+
+    async Task LoadData()
+    {
+        BookList = await _bookService.GetBooksAsync();
+        StateHasChanged();
+    }
+
+    List<Data.Book> FilterBookList()
+    {
+        // ToDo
+        return BookList.OrderBy(b => string.IsNullOrWhiteSpace(b.Title) ? b.BookMetadata.Title : b.Title).ToList();
+    }
+
+    async Task ShowAddEditBookDialog(Data.Book book)
+    {
+        await ShowAddEditBookDialog(book, false);
+    }
+
+    async Task ShowAddEditBookDialog(Data.Book book, bool isNewBook)
+    {
+        var parameters = new DialogParameters { ["Book"] = book, ["IsNewBook"] = isNewBook, ["BookService"] = _bookService };
+        var options = new DialogOptions() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true, NoHeader = true };
+
+        var dialog = await _dialog.ShowAsync<AddEditBook>(isNewBook ? "New Book" : "Edit " + book.ISBN, parameters, options);
+        var result = await dialog.Result;
+
+        Directory.Delete(Utils.FileUtils.GetTempPath(), true);
+        
+        LoadData();
+    }
+
+    enum BookViewEnum
+    {
+        Grid,
+        List
+    }
+}

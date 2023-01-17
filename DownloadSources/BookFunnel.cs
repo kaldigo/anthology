@@ -8,6 +8,8 @@ using System.Net;
 using System.Text;
 using Anthology.Plugins;
 using Anthology.Plugins.Models;
+using System.IO.Compression;
+using System.Text.RegularExpressions;
 
 namespace Anthology.Plugins.DownloadSources
 {
@@ -19,12 +21,107 @@ namespace Anthology.Plugins.DownloadSources
 
         public List<string> Settings => new List<string>() { "Username", "Password" };
 
-        public bool DownloadBook(Download download, Dictionary<string, string> settings)
+        private static Task _downloadTask;
+        private static List<Download> _downloadQueue = new List<Download>();
+
+        private static Task _extractTask;
+        private static List<Download> _extractQueue = new List<Download>();
+
+        public bool DownloadBook(Download download, string mediaPath, Dictionary<string, string> settings)
         {
-            throw new NotImplementedException();
+            return DownloadBookTask(mediaPath, settings, download);
         }
 
-        public List<Download> RefreshList(Dictionary<string, string> settings)
+        private bool DownloadBookTask(string mediaPath, Dictionary<string, string> settings, Download download = null)
+        {
+            if (download != null && !_downloadQueue.Select(d => d.Identifier).Contains(download.Identifier)) _downloadQueue.Add(download);
+            if (_downloadTask != null && (_downloadTask.Status == TaskStatus.Running || _downloadTask.Status == TaskStatus.WaitingToRun || _downloadTask.Status == TaskStatus.WaitingForActivation))
+            {
+                return true;
+            }
+            else
+            {
+                if (_downloadQueue.Count() == 0)
+                {
+                    return true;
+                }
+                else
+                {
+                    var currentDownload = _downloadQueue.First();
+
+                    _downloadTask = Task.Factory.StartNew(() =>
+                    {
+                        BrowserSession b = new BrowserSession();
+                        Login(b, settings);
+                        
+                        string downloadURL = GetBookDownloadPage(b, currentDownload.Identifier);
+                        string zipPath = Path.Combine(mediaPath, string.Concat(string.Join(", ", currentDownload.Author).Split(Path.GetInvalidFileNameChars())) + " - " + string.Concat(currentDownload.Title.Split(Path.GetInvalidFileNameChars())) + ".zip");
+                        using (WebClient client = new WebClient())
+                        {
+                            client.DownloadFile(downloadURL, zipPath);
+                        }
+
+                    });
+
+                    _downloadTask.Wait();
+
+                    ExtractBookTask(mediaPath, download);
+                    _downloadQueue.Remove(download);
+
+                    DownloadBookTask(mediaPath, settings);
+
+                    return true;
+                }
+            }
+        }
+        private async Task<bool> ExtractBookTask(string mediaPath, Download download = null)
+        {
+            if (download != null && !_extractQueue.Select(d => d.Identifier).Contains(download.Identifier)) _extractQueue.Add(download);
+            if (_extractTask != null && (_extractTask.Status == TaskStatus.Running || _extractTask.Status == TaskStatus.WaitingToRun || _extractTask.Status == TaskStatus.WaitingForActivation))
+            {
+                return true;
+            }
+            else
+            {
+                if (_extractQueue.Count() == 0)
+                {
+                    return true;
+                }
+                else
+                {
+                    var currentDownload = _extractQueue.First();
+
+                    _extractTask = Task.Factory.StartNew(() =>
+                    {
+                        string zipPath = Path.Combine(mediaPath, string.Concat(string.Join(", ", currentDownload.Author).Split(Path.GetInvalidFileNameChars())) + " - " + string.Concat(currentDownload.Title.Split(Path.GetInvalidFileNameChars())) + ".zip");
+                        var itemPath = Path.Combine(mediaPath, string.Concat(string.Join(", ", currentDownload.Author).Split(Path.GetInvalidFileNameChars())), string.Concat(currentDownload.Title.Split(Path.GetInvalidFileNameChars())));
+                        Directory.CreateDirectory(itemPath);
+                        ZipFile.ExtractToDirectory(zipPath, itemPath);
+                        File.Delete(zipPath);
+                        foreach (var filePath in Directory.GetFiles(itemPath))
+                        {
+                            if (Path.GetExtension(filePath) == ".mp3")
+                            {
+                                var fileName = Path.GetFileName(filePath);
+                                var newFileName = Regex.Replace(fileName, @"\d{3} .+? - .+? - ", "");
+                                var newPath = Path.Combine(itemPath, newFileName);
+                                File.Move(filePath, newPath);
+                            }
+                        }
+                    });
+
+                    _extractTask.Wait();
+
+                    _extractQueue.Remove(download);
+
+                    ExtractBookTask(mediaPath);
+
+                    return true;
+                }
+            }
+        }
+
+        public List<Download> GetDownloadList(Dictionary<string, string> settings)
         {
             var b = new BrowserSession();
             Login(b, settings);
@@ -89,9 +186,9 @@ namespace Anthology.Plugins.DownloadSources
             return books;
         }
 
-        public static string GetBookDownloadPage(BrowserSession b, string downloadPageURL)
+        public static string GetBookDownloadPage(BrowserSession b, string bookId)
         {
-            string pageHtml = b.Get(downloadPageURL + "_table");
+            string pageHtml = b.Get("https://my.bookfunnel.com/" + bookId + "/download_table");
 
             HtmlDocument htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(pageHtml);

@@ -56,7 +56,7 @@ namespace Anthology.Data.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("IsExplicit")
+                    b.Property<bool?>("IsExplicit")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Language")
@@ -111,12 +111,14 @@ namespace Anthology.Data.Migrations
                     b.Property<string>("BookISBN")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("Exists")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Value")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("ID");
@@ -153,10 +155,6 @@ namespace Anthology.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("BookISBN")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Sequence")
@@ -221,59 +219,6 @@ namespace Anthology.Data.Migrations
                     b.HasIndex("ClassificationID");
 
                     b.ToTable("ClassificationAlias");
-                });
-
-            modelBuilder.Entity("Anthology.Data.Download", b =>
-                {
-                    b.Property<Guid>("ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("BookISBN")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("DateAdded")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Identifier")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ImageURL")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Title")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("ID");
-
-                    b.HasIndex("BookISBN");
-
-                    b.ToTable("Downloads");
-                });
-
-            modelBuilder.Entity("Anthology.Data.DownloadAuthor", b =>
-                {
-                    b.Property<Guid>("ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("DownloadID")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("ID");
-
-                    b.HasIndex("DownloadID");
-
-                    b.ToTable("DownloadAuthor");
                 });
 
             modelBuilder.Entity("Anthology.Data.FieldPriorities", b =>
@@ -630,22 +575,6 @@ namespace Anthology.Data.Migrations
                         .HasForeignKey("ClassificationID");
                 });
 
-            modelBuilder.Entity("Anthology.Data.Download", b =>
-                {
-                    b.HasOne("Anthology.Data.Book", "Book")
-                        .WithMany()
-                        .HasForeignKey("BookISBN");
-
-                    b.Navigation("Book");
-                });
-
-            modelBuilder.Entity("Anthology.Data.DownloadAuthor", b =>
-                {
-                    b.HasOne("Anthology.Data.Download", null)
-                        .WithMany("Author")
-                        .HasForeignKey("DownloadID");
-                });
-
             modelBuilder.Entity("Anthology.Data.PersonAlias", b =>
                 {
                     b.HasOne("Anthology.Data.Person", null)
@@ -799,11 +728,6 @@ namespace Anthology.Data.Migrations
             modelBuilder.Entity("Anthology.Data.Classification", b =>
                 {
                     b.Navigation("Aliases");
-                });
-
-            modelBuilder.Entity("Anthology.Data.Download", b =>
-                {
-                    b.Navigation("Author");
                 });
 
             modelBuilder.Entity("Anthology.Data.FieldPriorities", b =>

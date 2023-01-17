@@ -9,7 +9,6 @@ namespace Anthology.Data
         }
         public DbSet<Book> Books { get; set; }
         public DbSet<Series> Series { get; set; }
-        public DbSet<Download> Downloads { get; set; }
         public DbSet<Classification> Classifications { get; set; }
         public DbSet<Person> People { get; set; }
         public DbSet<Settings> Settings { get; set; }

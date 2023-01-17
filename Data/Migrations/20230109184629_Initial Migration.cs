@@ -23,7 +23,7 @@ namespace Anthology.Data.Migrations
                     Publisher = table.Column<string>(type: "TEXT", nullable: true),
                     PublishDate = table.Column<DateTime>(type: "TEXT", nullable: true),
                     Language = table.Column<string>(type: "TEXT", nullable: true),
-                    IsExplicit = table.Column<bool>(type: "INTEGER", nullable: false),
+                    IsExplicit = table.Column<bool>(type: "INTEGER", nullable: true),
                     BookMetadataJson = table.Column<string>(type: "TEXT", nullable: true),
                     DateFetchedMetadata = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
@@ -71,6 +71,19 @@ namespace Anthology.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "TempImages",
+                columns: table => new
+                {
+                    ID = table.Column<Guid>(type: "TEXT", nullable: false),
+                    TempPath = table.Column<Guid>(type: "TEXT", nullable: false),
+                    FileName = table.Column<string>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TempImages", x => x.ID);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "AudiobookCover",
                 columns: table => new
                 {
@@ -112,7 +125,8 @@ namespace Anthology.Data.Migrations
                 {
                     ID = table.Column<Guid>(type: "TEXT", nullable: false),
                     Key = table.Column<string>(type: "TEXT", nullable: false),
-                    Value = table.Column<string>(type: "TEXT", nullable: false),
+                    Value = table.Column<string>(type: "TEXT", nullable: true),
+                    Exists = table.Column<bool>(type: "INTEGER", nullable: false),
                     BookISBN = table.Column<string>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
@@ -364,7 +378,6 @@ namespace Anthology.Data.Migrations
                 columns: table => new
                 {
                     ID = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Name = table.Column<string>(type: "TEXT", nullable: false),
                     Sequence = table.Column<string>(type: "TEXT", nullable: false),
                     BookISBN = table.Column<string>(type: "TEXT", nullable: true),
                     SeriesID = table.Column<Guid>(type: "TEXT", nullable: false)
@@ -706,6 +719,9 @@ namespace Anthology.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "SourcePriority");
+
+            migrationBuilder.DropTable(
+                name: "TempImages");
 
             migrationBuilder.DropTable(
                 name: "Classifications");

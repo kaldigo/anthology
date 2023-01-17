@@ -1,0 +1,118 @@
+﻿@page "/Import"
+@using Anthology.Plugins.Models
+@using Anthology.WebUI.Components.Modals
+@using Anthology.Data
+
+@inject Anthology.Services.IImportService _importService
+@inject Anthology.Services.IBookService _bookService
+@inject Anthology.Services.IPluginsService _pluginsService
+@inject Anthology.Services.IMetadataService _metadataService
+@inject MudBlazor.ISnackbar _snackBar
+@inject MudBlazor.IDialogService _dialog
+
+<PageTitle>Import</PageTitle>
+
+@if (ImportList == null)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudTable T="ImportItem" Items="@ImportList" Dense="false" Hover="true" Bordered="false" Striped="false" Filter="new Func<ImportItem, bool>(Search)" OnRowClick="ImportBook">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Import</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Title</MudTh>
+            <MudTh>Authors</MudTh>
+            <MudTh>Series</MudTh>
+            <MudTh>Identifiers</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Title">@context.Metadata.Title</MudTd>
+            <MudTd DataLabel="Authors">@(string.Join(", ", context.Metadata.Authors))</MudTd>
+                <MudTd DataLabel="Series">@(string.Join(", ", context.Metadata.Series.Select(s => s.Name + (string.IsNullOrWhiteSpace(s.VolumeNumber) ? "" : " #" + s.VolumeNumber))))</MudTd>
+                <MudTd DataLabel="Identifiers">@(string.Join(", ", context.Identifiers.Where(i => i.Key != "ISBN").Select(i => i.Key + ": " + i.Value )))</MudTd>
+            <MudTd></MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+}
+
+@code
+{
+    List<ImportItem> ImportList { get; set; }
+
+    string searchString { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (firstRender)
+        {
+            await LoadData();
+
+        }
+    }
+
+    async Task LoadData()
+    {
+        ImportList = await _importService.GetImportList();
+        ImportList = ImportList.OrderBy(i => i.Metadata.Title).ToList();
+        StateHasChanged();
+    }
+
+    bool Search(ImportItem importItem)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        if (CompareStrings(importItem.Metadata.Title, searchString)) return true;
+        if (importItem.Metadata.Authors.Any(a => CompareStrings(a, searchString))) return true;
+        if (importItem.Metadata.Series.Any(s => CompareStrings(s.Name, searchString))) return true;
+
+        return false;
+    }
+
+    bool CompareStrings(string a, string b) => (a.ToLower().Contains(b.ToLower()) || b.ToLower().Contains(a.ToLower()));
+    
+
+    async Task ImportBook(TableRowClickEventArgs<ImportItem> args)
+    {
+        var importItem = args.Item;
+        var identifiers = _pluginsService.GetPluginList().Select(p => p.Identifier).Distinct().Where(p => !string.IsNullOrWhiteSpace(p) && p != importItem.Key).OrderBy(i => i);
+        var refreshMetadata = false;
+        var book = new Data.Book();
+        book.BookMetadata = importItem.Metadata;
+
+        var importItemIdentifiers = importItem.Identifiers.ToList();
+        foreach (var identifier in identifiers)
+        {
+            if (importItemIdentifiers.Any(i => String.Equals(i.Key, identifier, StringComparison.CurrentCultureIgnoreCase)))
+            {
+                book.Identifiers.Add(new BookIdentifier(identifier, importItemIdentifiers.First(i => String.Equals(i.Key, identifier, StringComparison.CurrentCultureIgnoreCase)).Value));
+                refreshMetadata = true;
+            }
+        }
+
+        book.Identifiers.Add(new BookIdentifier(importItem.Key, importItem.Identifier));
+        if (refreshMetadata) _metadataService.RefreshBookMetadata(book);
+
+        ShowAddEditBookDialog(book, importItem);
+    }
+
+    async Task ShowAddEditBookDialog(Data.Book book, ImportItem importItem)
+    {
+        var parameters = new DialogParameters { ["Book"] = book, ["IsNewBook"] = true, ["BookService"] = _bookService };
+        var options = new DialogOptions() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true, NoHeader = true };
+
+        var dialog = await _dialog.ShowAsync<AddEditBook>("Import Book", parameters, options);
+        var result = await dialog.Result;
+
+        LoadData();
+    }
+}

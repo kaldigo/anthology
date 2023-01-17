@@ -11,9 +11,9 @@ namespace Anthology.Services
 {
     public interface IMetadataService
     {
-        Task<List<dynamic>> Search(Dictionary<string, string> searchQuery);
         Task<dynamic> GetApiMetadata(Book book);
-        Task<Metadata> GetMetadata(Book book, bool forceRefresh);
+        Task<List<MetadataSearchResult>> SearchMetadata(Plugin plugin, string title, string author);
+        Task<Metadata> GetMetadata(Book book, bool forceRefresh = false);
         Task RefreshBookMetadata(Book dbBook);
     }
 }

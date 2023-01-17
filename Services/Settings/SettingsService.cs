@@ -25,6 +25,12 @@ namespace Anthology.Services
             return _context.Settings.First();
         }
 
+        public async Task<Settings> GetSettingsAsync()
+        {
+            Task.Delay(0);
+            return GetSettings();
+        }
+
         public void SaveSettings(Settings settings)
         {
             _context.SaveChanges();

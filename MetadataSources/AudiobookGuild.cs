@@ -12,7 +12,7 @@ namespace Anthology.Plugins.MetadataSources
 {
     internal class AudiobookGuild : IMetadataSource
     {
-        public string Name => "AudiobookGuild";
+        public string Name => "Audiobook Guild";
 
         public string IdentifierKey => "AGID";
 
@@ -56,7 +56,7 @@ namespace Anthology.Plugins.MetadataSources
             }
         }
 
-        public List<Metadata> Search(Dictionary<string, string> settings, string title, string author = null)
+        public List<MetadataSearchResult> Search(Dictionary<string, string> settings, string title, string author = null)
         {
             using (HttpClient client = new HttpClient())
             {
@@ -66,7 +66,7 @@ namespace Anthology.Plugins.MetadataSources
                 {
                     var jsonString = JsonConvert.DeserializeObject<AudiobookGuildSearchRoot>(response);
 
-                    return jsonString.products.Select(r => GetMetadata(r.handle, settings)).ToList();
+                    return jsonString.products.Select(r => new MetadataSearchResult() {Key = IdentifierKey, Identifier = r.handle, Metadata = GetMetadata(r.handle, settings)}).ToList();
                 }
                 else
                 {

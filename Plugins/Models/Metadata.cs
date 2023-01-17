@@ -50,4 +50,10 @@ namespace Anthology.Plugins.Models
             }
         }
     }
+    public class MetadataSearchResult
+    {
+        public string Key { get; set; }
+        public string Identifier { get; set; }
+        public Metadata Metadata { get; set; }
+    }
 }

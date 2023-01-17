@@ -12,7 +12,7 @@ namespace Anthology.Plugins
         string Name { get; }
         string IdentifierKey { get; }
         List<string> Settings { get; }
-        List<Download> RefreshList(Dictionary<string,string> settings);
-        bool DownloadBook(Download download, Dictionary<string,string> settings);
+        List<Download> GetDownloadList(Dictionary<string,string> settings);
+        bool DownloadBook(Download download, string mediaPath, Dictionary<string, string> settings);
     }
 }

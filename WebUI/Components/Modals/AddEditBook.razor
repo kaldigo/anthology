@@ -1,0 +1,162 @@
+﻿@using Anthology.WebUI.Components.Modals.AddEditBookTabs
+@using Anthology.Services
+@using Anthology.Data
+
+@inject Anthology.Services.IMetadataService _metadataService
+@inject MudBlazor.ISnackbar _snackBar
+
+<style>
+    .add-edit-book-dialog .mud-dialog-content {
+        padding: 0px 0px !important;
+    }
+
+    .add-edit-book-dialog .mud-dialog-actions {
+        box-shadow: 0px -2px 1px -1px rgba(0, 0, 0, 0.2), 0px -1px 1px 0px rgba(0, 0, 0, 0.14), 0px -1px 3px 0px rgba(0, 0, 0, 0.12);
+    }
+</style>
+
+<MudDialog Class="add-edit-book-dialog">
+    <DialogContent>
+        <MudTabs @ref="tabs" Elevation="1" Rounded="true" PanelClass="pa-6" DisableRipple="true">
+            <MudTabPanel ID="@("DetailsTab")" Text="Details">
+                <Details @bind-Book="BookEdited" />
+            </MudTabPanel>
+            <MudTabPanel ID="@("CoversTab")" Text="Covers">
+                <Covers @bind-Book="BookEdited" @bind-NewBookCovers="NewBookCovers" @bind-NewAudiobookCovers="NewAudiobookCovers" @bind-CoversToDelete="ImagesToDelete" />
+            </MudTabPanel>
+            <MudTabPanel ID="@("ExtraImagesTab")" Text="Extra Images">
+                <MudText>Extra Images</MudText>
+                <ExtraImages @bind-Book="BookEdited" @bind-NewBookImages="NewBookImages" @bind-CoversToDelete="ImagesToDelete" />
+            </MudTabPanel>
+            <MudTabPanel ID="@("MatchTab")" Text="Match">
+                <MudText>Match</MudText>
+                <MatchBook @bind-Book="BookEdited" BookMatched="@MatchBook" />
+            </MudTabPanel>
+        </MudTabs>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Error" OnClick="DeleteBook">Delete Book</MudButton>
+        <MudButton Color="Color.Primary" OnClick="RefreshMetadata">Refresh Metadata</MudButton>
+        <MudButton Color="Color.Success" OnClick="SaveBook">@(IsNewBook ? "Add" : "Save") Book</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    MudTabs tabs;
+
+    [Parameter]
+    public Data.Book Book { get; set; }
+    
+    Data.Book BookEdited { get; set; }
+
+    [Parameter]
+    public bool IsNewBook { get; set; }
+
+    [Parameter]
+    public BookService BookService { get; set; }
+
+    List<Data.TempImage> NewBookCovers { get; set; } = new();
+    List<Data.TempImage> NewAudiobookCovers { get; set; } = new();
+    List<Data.TempImage> NewBookImages { get; set; } = new();
+    List<string> ImagesToDelete { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        BookEdited = Book.Clone();
+    }
+
+    void MatchBook()
+    {
+        tabs.ActivatePanel("DetailsTab");
+        RefreshMetadata();
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void RefreshMetadata()
+    {
+        _metadataService.RefreshBookMetadata(BookEdited);
+        StateHasChanged();
+    }
+
+    private void DeleteBook()
+    {
+        BookService.DeleteBook(Book.ISBN);
+        MudDialog.Close();
+    }
+
+    private void SaveBook()
+    {
+        bool IdentifiersChanged = false;
+        if (Book.Identifiers.Count == BookEdited.Identifiers.Where(a => (string.IsNullOrWhiteSpace(a.Value) && a.Exists)).ToList().Count)
+        {
+            foreach (var identifier in Book.Identifiers)
+            {
+                var existingIdentifier = BookEdited.Identifiers.FirstOrDefault(i => i.Key == identifier.Key);
+                if (existingIdentifier == null || !(existingIdentifier.Value == identifier.Value && existingIdentifier.Exists == identifier.Exists))
+                {
+                    IdentifiersChanged = true;
+                    break;
+                }
+            }
+        }
+        ProcessImages();
+
+        Book.Update(BookEdited);
+
+        BookService.SaveBook(Book, IdentifiersChanged);
+        _snackBar.Add("Book Saved", Severity.Success);
+
+        if(IsNewBook) MudDialog.Close(DialogResult.Ok("Added"));
+        else StateHasChanged();
+    }
+
+    private void ProcessImages()
+    {
+        // New Book Covers
+        foreach (var tempImage in NewBookCovers.ToList())
+        {
+            var newFilename = Guid.NewGuid().ToString() + Path.GetExtension(tempImage.FileName);
+            var cover = new BookCover() { Book = BookEdited, FileName = newFilename };
+            Directory.CreateDirectory(Path.GetDirectoryName(cover.GetPath()));
+            File.Move(tempImage.GetPath(), cover.GetPath());
+            BookEdited.BookCovers.Add(cover);
+            NewBookCovers.Remove(tempImage);
+        }
+
+        // New Audiobook Covers
+        foreach (var tempImage in NewAudiobookCovers.ToList())
+        {
+            var newFilename = Guid.NewGuid().ToString() + Path.GetExtension(tempImage.FileName);
+            var cover = new AudiobookCover() { Book = BookEdited, FileName = newFilename };
+            Directory.CreateDirectory(Path.GetDirectoryName(cover.GetPath()));
+            File.Move(tempImage.GetPath(), cover.GetPath());
+            BookEdited.AudiobookCovers.Add(cover);
+            NewAudiobookCovers.Remove(tempImage);
+        }
+        
+        // New Book Images
+        foreach (var tempImage in NewBookImages.ToList())
+        {
+            var newFilename = Guid.NewGuid().ToString() + Path.GetExtension(tempImage.FileName);
+            var cover = new BookImage() { Book = BookEdited, FileName = newFilename };
+            Directory.CreateDirectory(Path.GetDirectoryName(cover.GetPath()));
+            File.Move(tempImage.GetPath(), cover.GetPath());
+            BookEdited.Images.Add(cover);
+            NewBookImages.Remove(tempImage);
+        }
+
+        // Delete Images
+        foreach (var imagePath in ImagesToDelete.ToList())
+        {
+            File.Delete(imagePath);
+            ImagesToDelete.Remove(imagePath);
+        }
+    }
+}

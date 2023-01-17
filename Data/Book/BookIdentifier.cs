@@ -14,13 +14,19 @@ namespace Anthology.Data
         [Key]
         public Guid ID { get; set; } = new Guid();
         public string Key { get; set; }
-        public string Value { get; set; }
+        public string? Value { get; set; }
+        public bool Exists { get; set; } = true;
         public virtual Book Book { get; set; }
         public BookIdentifier() { }
         public BookIdentifier(string key, string value)
         {
             this.Key = key;
             this.Value = value;
+        }
+
+        public BookIdentifier Clone()
+        {
+            return new BookIdentifier(this.Key, this.Value);
         }
     }
 }

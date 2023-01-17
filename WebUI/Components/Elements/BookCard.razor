@@ -1,0 +1,121 @@
+﻿@typeparam T
+
+<style>
+    .cover-card {
+        width: @(Anthology.Utils.GlobalVariables.CoverWidth + "px");
+    }
+
+    .cover-card .mud-card-header {
+        display: block;
+        height: @(Anthology.Utils.GlobalVariables.CoverHeight + "px");
+    }
+
+    .cover-img,
+    .cover-img-outer,
+    .cover-img-inner {
+        width: @(Anthology.Utils.GlobalVariables.CoverWidth + "px");
+        height: @(Anthology.Utils.GlobalVariables.CoverHeight + "px");
+    }
+
+    .cover-img-outer,
+    .cover-img-inner {
+        background-position: center;
+        background-repeat: no-repeat;
+        position: relative;
+    }
+
+    .cover-img {
+        overflow: hidden
+    }
+
+    .cover-img-outer {
+        background-size: cover;
+        filter: blur(10px);
+        -webkit-filter: blur(10px);
+    }
+
+    .cover-img-inner {
+        top: @("-" + Anthology.Utils.GlobalVariables.CoverHeight + "px");
+        background-size: contain;
+    }
+
+    .status-icon {
+        display: block;
+        position: relative;
+        top: -28px;
+        left: 172px;
+    }
+</style>
+
+<MudItem>
+    <MudCard Class="cover-card">
+        <MudCardHeader Class="pa-0">
+            <div class="cover-img">
+                <div class="cover-img-outer" style="background-image: url('@CoverURL');"></div>
+                <div class="cover-img-inner" style="background-image: url('@CoverURL');"></div>
+            </div>
+            @if (ShowStatus)
+            {
+                <MudIcon Class="status-icon" Icon="@Icons.Material.Filled.Circle" Color="@(Status ? Color.Success : Color.Error)" />
+            }
+        </MudCardHeader>
+        <MudCardContent Class="pa-3">
+            <MudText Typo="Typo.subtitle1">@Title</MudText>
+            <MudText Typo="Typo.subtitle2">@Authors</MudText>
+            <MudText Typo="Typo.caption">@Series</MudText>
+        </MudCardContent>
+        @if (!string.IsNullOrWhiteSpace(ButtonText))
+        {
+            <MudCardActions Class="pt-0 pr-2 pl-2 pb-2">
+                <MudButton Class="pa-0" Style="width: 100%;" Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" OnClick="@(() => ButtonAction.InvokeAsync(ButtonItem))">@ButtonText</MudButton>
+                @if (!string.IsNullOrWhiteSpace(SecondButtonText))
+                {
+                    <MudButton Class="pa-0" Style="width: 100%;" Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" OnClick="@(() => SecondButtonAction.InvokeAsync(ButtonItem))">@SecondButtonText</MudButton>
+                }
+            </MudCardActions>
+        }
+    </MudCard>
+</MudItem>
+@code {
+    [Parameter]
+    public string Title { get; set; }
+
+    [Parameter]
+    public string Authors { get; set; }
+
+    [Parameter]
+    public string Series { get; set; }
+
+    [Parameter]
+    public string CoverURL { get; set; }
+
+    [Parameter]
+    public bool ShowStatus { get; set; }
+
+    [Parameter]
+    public bool Status { get; set; } = false;
+
+    [Parameter]
+    public T ButtonItem { get; set; }
+
+    [Parameter]
+    public string ButtonText { get; set; }
+
+    [Parameter]
+    public EventCallback<T> ButtonAction { get; set; }
+
+    [Parameter]
+    public string SecondButtonText { get; set; }
+
+    [Parameter]
+    public EventCallback<T> SecondButtonAction { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+
+        StateHasChanged();
+    }
+
+
+}

@@ -8,7 +8,6 @@ namespace Anthology.Data
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         [Key]
         public Guid ID { get; set; } = new Guid();
-        public string Name { get; set; }
         public string Sequence { get; set; }
         public virtual Book Book { get; set; }
         public virtual Series Series { get; set; }

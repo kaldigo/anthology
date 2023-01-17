@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="7.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Data\Data.csproj" />
     <ProjectReference Include="..\DownloadSources\Plugins.DownloadSources.csproj" />
     <ProjectReference Include="..\ImportSources\Plugins.ImportSources.csproj" />

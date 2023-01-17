@@ -12,7 +12,7 @@ namespace Anthology.Plugins
         string Name { get; }
         string IdentifierKey { get; }
         List<string> Settings { get; }
-        List<Metadata> Search(Dictionary<string,string> settings, string title, string author = null);
+        List<MetadataSearchResult> Search(Dictionary<string,string> settings, string title, string author = null);
         Metadata GetMetadata(string identifier, Dictionary<string,string> settings);
 
     }

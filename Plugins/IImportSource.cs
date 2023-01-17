@@ -12,6 +12,6 @@ namespace Anthology.Plugins
         string Name { get; }
         string IdentifierKey { get; }
         List<string> Settings { get; }
-        List<Import> RunImport(Dictionary<string,string> settings);
+        List<ImportItem> GetImportItems(Dictionary<string, string> settings);
     }
 }

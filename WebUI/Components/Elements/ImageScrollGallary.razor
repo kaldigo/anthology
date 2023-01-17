@@ -1,0 +1,104 @@
+﻿@using Anthology.Utils
+@using Anthology.Data
+
+<style>
+    .image-scroll-gallary {
+        overflow-x: auto;
+    }
+
+    .cover-img,
+    .cover-img-outer,
+    .cover-img-inner {
+        width: @(Anthology.Utils.GlobalVariables.CoverWidth + "px");
+        height: @(Anthology.Utils.GlobalVariables.CoverHeight + "px");
+    }
+
+    .cover-img-outer,
+    .cover-img-inner {
+        background-position: center;
+        background-repeat: no-repeat;
+        position: relative;
+    }
+
+    .cover-img {
+        overflow: hidden
+    }
+
+    .cover-img-outer {
+        background-size: cover;
+        filter: blur(10px);
+        -webkit-filter: blur(10px);
+    }
+
+    .cover-img-inner {
+        top: @("-" + Anthology.Utils.GlobalVariables.CoverHeight + "px");
+        background-size: contain;
+    }
+</style>
+
+<div class="d-flex flex-nowrap image-scroll-gallary">
+    @foreach (var image in NewImages)
+    {
+        var imageUrl = image.GetUrl();
+        <MudPaper Class="mr-2 mb-2" Elevation="1">
+            <div class="cover-img">
+                <div class="cover-img-outer" style="background-image: url('@imageUrl');"></div>
+                <div class="cover-img-inner" style="background-image: url('@imageUrl');"></div>
+            </div>
+
+            @if (!ExternalImages)
+            {
+                <div class="pa-2 d-flex flex-row-reverse">
+                    <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteNewImage.InvokeAsync(image))">Delete</MudButton>
+                </div>
+            }
+        </MudPaper>
+    }
+    @foreach (var image in Images)
+    {
+        var imageUrl = ExternalImages ? image.FileName : image.GetUrl();
+        <MudPaper Class="mr-2 mb-2" Elevation="1">
+            <div class="cover-img">
+                <div class="cover-img-outer" style="background-image: url('@imageUrl');"></div>
+                <div class="cover-img-inner" style="background-image: url('@imageUrl');"></div>
+            </div>
+
+            @if (!ExternalImages)
+            {
+                <div class="pa-2 d-flex flex-row-reverse">
+                    <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteImage.InvokeAsync(image))">Delete</MudButton>
+                </div>
+            }
+        </MudPaper>
+    }
+</div>
+
+@code {
+    public List<Data.Image> _images { get; set; } = new();
+    [Parameter]
+    public List<Data.Image> Images
+    {
+        get => _images;
+        set
+        {
+            if (ListUtils.CompareLists(_images, value)) return;
+            _images = value;
+            ImagesChanged.InvokeAsync(value);
+        }
+    }
+    [Parameter]
+    public EventCallback<List<Data.Image>> ImagesChanged { get; set; }
+
+    [Parameter]
+    public List<TempImage> NewImages { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<Data.Image> DeleteImage { get; set; }
+
+    [Parameter]
+    public EventCallback<TempImage> DeleteNewImage { get; set; }
+
+    [Parameter]
+    public bool ExternalImages { get; set; } = false;
+
+}

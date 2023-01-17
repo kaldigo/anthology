@@ -1,0 +1,101 @@
+﻿@using Anthology.Services
+@using Anthology.Plugins.Models
+@using Anthology.WebUI.Pages
+@using Anthology.WebUI.Components.Elements
+
+@inject Anthology.Services.IPluginsService _pluginsService
+@inject Anthology.Services.IMetadataService _metadataService
+
+<style>
+    .cover-card .mud-typography-subtitle2 {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+</style>
+
+<MudGrid>
+    <MudItem xs="12">
+        @foreach (var plugin in Plugins)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mr-2" OnClick="() => SearchMetadataSource(plugin)">@plugin.Name</MudButton>
+        }
+    </MudItem>
+    @if (StartedSearch)
+    {
+        <MudItem xs="12">
+            @if (Results == null || Results.Count == 0)
+            {
+                <MudText Typo="Typo.body1">No Results Found</MudText>
+            }
+            else
+            {
+                <MudGrid Class="flex-nowrap overflow-y-auto">
+                    @foreach (var result in Results)
+                    {
+                        <BookCard T="MetadataSearchResult" Title="@result.Metadata.Title" Authors="@string.Join(", ", result.Metadata.Authors)" Series="@string.Join(", ", result.Metadata.Series.Select(s => s.Name + (string.IsNullOrWhiteSpace(s.VolumeNumber) ? "" : " #" + s.VolumeNumber)))" CoverURL="@result.Metadata.Covers.FirstOrDefault()" ButtonText="Select" ButtonItem="@result" ButtonAction="@MatchResult"/>
+                    }
+                </MudGrid>
+            }
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+    public Data.Book _book { get; set; }
+
+    [Parameter]
+    public Data.Book Book
+    {
+        get => _book;
+        set
+        {
+            if (Equals(_book, value)) return;
+            _book = value;
+            BookChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<Data.Book> BookChanged { get; set; }
+
+    [Parameter]
+    public EventCallback BookMatched { get; set; }
+
+    bool StartedSearch { get; set; } = false;
+
+    List<MetadataSearchResult> Results { get; set; } = new();
+
+    IEnumerable<Plugin> Plugins { get; set; }
+
+    string Title => !string.IsNullOrWhiteSpace(Book.Title) ? Book.Title : Book.BookMetadata.Title;
+
+    string Author => Book.Authors.Count != 0 ? (Book.Authors.Count == 1 ? Book.Authors.First().Name : null) : (Book.BookMetadata.Authors.Count == 1 ? Book.BookMetadata.Authors.First() : null);
+
+    protected override async Task OnInitializedAsync()
+    {
+        LoadData();
+    }
+
+    void LoadData()
+    {
+        Plugins = _pluginsService.GetPluginList().Where(p => p.Type == Plugin.PluginType.Metadata);
+    }
+
+    async Task SearchMetadataSource(Plugin plugin)
+    {
+        Results = await _metadataService.SearchMetadata(plugin, Title, Author);
+        StartedSearch = true;
+        StateHasChanged();
+    }
+
+    async Task MatchResult(MetadataSearchResult result)
+    {
+        Book.Identifiers.First(i => i.Key == result.Key).Value = result.Identifier;
+        BookMatched.InvokeAsync();
+        StartedSearch = false;
+        Results = new List<MetadataSearchResult>();
+        StateHasChanged();
+    }
+
+}

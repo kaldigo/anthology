@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace Anthology.Plugins.Models
 {
-    public class Import
+    public class ImportItem
     {
         public string Key { get; set; }
         public string Identifier { get; set; }
-        public string Title { get; set; }
-        public List<string> Authors { get; set; }
+        public List<KeyValuePair<string,string>> Identifiers { get; set; }
+        public Metadata Metadata { get; set; }
     }
 }

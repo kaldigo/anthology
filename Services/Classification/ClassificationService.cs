@@ -1,4 +1,5 @@
 ﻿using Anthology.Data;
+using Anthology.Plugins.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +20,25 @@ namespace Anthology.Services
         public List<Classification> GetClassifications()
         {
             return _context.Classifications.ToList();
+        }
+        public List<Classification> GetAllClassifications(Metadata metadata = null)
+        {
+            var bookMetadata = _context.Books.Select(b => b.BookMetadata).ToList();
+            if(metadata != null) bookMetadata.Add(metadata);
+            var metadataGenresStrings = bookMetadata.SelectMany(b => b.Genres).ToList();
+            var metadataGenres = metadataGenresStrings.Select(g => new Classification()
+                { Name = g, Type = Classification.ClassificationType.Genre });
+
+            var metadataTagsStrings = bookMetadata.SelectMany(b => b.Tags).ToList();
+            var metadataTags = metadataTagsStrings.Select(t => new Classification()
+                { Name = t, Type = Classification.ClassificationType.Tag });
+
+            var metadataClassifications = CleanClassification(metadataGenres.Concat(metadataTags).ToList());
+
+            var dbClassifications = _context.Classifications.ToList();
+            var allClassifications = dbClassifications.Concat(metadataClassifications).DistinctBy(c => c.Name)
+                .ToList();
+            return allClassifications;
         }
 
         public Classification GetClassification(Guid guid)
@@ -52,7 +72,7 @@ namespace Anthology.Services
             {
                 var classification = GetClassification(item.Name);
 
-                if(classification != null) cleanedClassifications.Add(classification);
+                if (classification != null) cleanedClassifications.Add(classification);
                 else cleanedClassifications.Add(item);
             }
 

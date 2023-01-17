@@ -14,52 +14,39 @@ namespace Anthology.Services
 {
     public class MetadataService : IMetadataService
     {
-        IBookService _bookService;
         IPluginsService _pluginsService;
         ISettingsService _settingsService;
         IClassificationService _classificationService;
         ISeriesService _seriesService;
 
-        public MetadataService(IBookService bookService, IPluginsService pluginsService, ISettingsService settingsService, IClassificationService classificationService, ISeriesService seriesService)
+        public MetadataService(IPluginsService pluginsService, ISettingsService settingsService, IClassificationService classificationService, ISeriesService seriesService)
         {
-            _bookService = bookService;
             _pluginsService = pluginsService;
             _settingsService = settingsService;
             _classificationService = classificationService;
             _seriesService = seriesService;
         }
 
-        public Task<List<dynamic>> Search(Dictionary<string, string> searchQuery)
-        {
-            if (searchQuery["title"].Length > 4 && searchQuery["title"].Substring(0, 4) == "ANTH") searchQuery["isbn"] = searchQuery["title"];
-
-            if (searchQuery["isbn"] != null && searchQuery["isbn"].Substring(0, 4) == "ANTH")
-            {
-                var book = _bookService.GetBookByISBN(searchQuery["isbn"]);
-                if (book != null)
-                {
-                    var searchISBN = GetMetadata(book).Result;
-
-                    var searchISBNList = new List<dynamic>();
-                    searchISBNList.Add(searchISBN);
-                    return Task.FromResult(searchISBNList);
-
-                }
-            }
-
-            var books = _bookService.GetBooks(searchQuery["title"]).Select(b => (dynamic)GetApiMetadata(b)).ToList();
-            return Task.FromResult(books);
-        }
         public Task<dynamic> GetApiMetadata(Book book)
         {
             dynamic mergedMetadata = GetMetadata(book, false);
             mergedMetadata.ISBN = book.ISBN;
-            foreach (var identifier in book.Identifiers)
+            foreach (var identifier in book.Identifiers.Where(i => i.Exists && !string.IsNullOrWhiteSpace(i.Value)))
             {
                 mergedMetadata.Add(identifier.Key, identifier.Value);
             }
 
             return Task.FromResult(mergedMetadata);
+        }
+
+        public async Task<List<MetadataSearchResult>> SearchMetadata(Plugin plugin, string title, string author)
+        {
+            var pluginInstance = Activator.CreateInstance(plugin.ClassType) as IMetadataSource;
+            var pluginSettings = _settingsService.GetSettings().PluginSettings.Where(s => s.PluginName == plugin.Name).SelectMany(s => s.Settings).ToDictionary(s => s.Key, s => s.Value);
+
+            var results = pluginInstance.Search(pluginSettings, title, author);
+
+            return results;
         }
 
         public Task<Metadata> GetMetadata(Book book, bool forceRefresh = false)
@@ -102,7 +89,7 @@ namespace Anthology.Services
             foreach (var plugin in sourcePlugins)
             {
                 var sourceIdentifier = book.Identifiers.FirstOrDefault(i => i.Key == plugin.Identifier);
-                if (sourceIdentifier != null)
+                if (sourceIdentifier != null && !string.IsNullOrWhiteSpace(sourceIdentifier.Value) && sourceIdentifier.Exists)
                 {
                     var sourceInstance = Activator.CreateInstance(plugin.ClassType) as IMetadataSource;
                     var sourceSettings = _settingsService.GetSettings().PluginSettings.Where(s => s.PluginName == plugin.Name).SelectMany(s => s.Settings).ToDictionary(s => s.Key, s => s.Value);
@@ -111,7 +98,6 @@ namespace Anthology.Services
             }
 
             book.BookMetadata = MergeMetadata(dataToMerge);
-            _bookService.SaveBook(book);
             return Task.CompletedTask;
         }
 
@@ -241,7 +227,7 @@ namespace Anthology.Services
                 Genres = book.Classifications.Where(c => c.Type == Classification.ClassificationType.Genre).Select(c => c.Name).ToList(),
                 Tags = book.Classifications.Where(c => c.Type == Classification.ClassificationType.Tag).Select(c => c.Name).ToList(),
                 Language = book.Language,
-                IsExplicit = book.IsExplicit,
+                IsExplicit = book.IsExplicit.HasValue ? book.IsExplicit.Value : false,
                 Covers = covers
             };
         }

@@ -1,0 +1,225 @@
+﻿@using Anthology.WebUI.Components.Inputs
+@using Anthology.Services
+@using Anthology.Data
+
+@inject Anthology.Services.IPluginsService _pluginsService
+@inject Anthology.Services.IClassificationService _classificationService
+@inject Anthology.Services.IPersonService _personService
+@inject Anthology.Services.ISeriesService _seriesService
+@inject MudBlazor.ISnackbar _snackBar
+
+<MudGrid>
+    <MudItem xs="8">
+        <MetadataStringInput @bind-InputValue="Book.Title" Label="Title" MetadataValue="@Book.BookMetadata.Title" />
+    </MudItem>
+    <MudItem xs="4">
+        <MetadataStringInput @bind-InputValue="Book.Subtitle" Label="Subtitle" MetadataValue="@Book.BookMetadata.Subtitle" ShowAdornment="true" @bind-AdornmentValue="Book.SubtitleLock" AdornmentText="Lock Field" />
+    </MudItem>
+    <MudItem xs="6">
+        <MetadataMultiSelect T="Person" AliasT="PersonAlias" @bind-SelectValue="@Book.Authors" MetadataValue="@MetadataAuthors" ExistingValues="@ExistingPeople" Label="Authors" />
+    </MudItem>
+    <MudItem xs="6">
+        <MetadataMultiSelect T="Person" AliasT="PersonAlias" @bind-SelectValue="@Book.Narrators" MetadataValue="@MetadataNarrators" ExistingValues="@ExistingPeople" Label="Narrators" />
+    </MudItem>
+    <MudItem xs="9">
+        <MetadataSeriesSelect @bind-SelectValue="@Book.Series" MetadataValue="@MetadataSeries" ExistingValues="@ExistingSeries" Label="Series" />
+    </MudItem>
+    <MudItem xs="3">
+        <MudDatePicker Label="Publish Date" @bind-Date="PublishDate" Variant="Variant.Outlined" Margin="Margin.Dense" />
+    </MudItem>
+    <MudItem xs="12">
+        <MetadataStringInput @bind-InputValue="Book.Description" Label="Description" MetadataValue="@Book.BookMetadata.Description" Lines="5" />
+    </MudItem>
+    <MudItem xs="5">
+        <MetadataStringInput @bind-InputValue="Book.Publisher" Label="Publisher" MetadataValue="@Book.BookMetadata.Publisher" />
+    </MudItem>
+    <MudItem xs="5">
+        <MetadataStringInput @bind-InputValue="Book.Language" Label="Language" MetadataValue="@Book.BookMetadata.Language" />
+    </MudItem>
+    <MudItem xs="2">
+        <MudCheckBox @bind-Checked="IsExplicit" Label="Explicit"></MudCheckBox>
+    </MudItem>
+    <MudItem xs="6">
+        <MetadataMultiSelect T="Classification" AliasT="ClassificationAlias" @bind-SelectValue="Genres" MetadataValue="@MetadataGenres" ExistingValues="@ExistingGenres" ClassificationType="@Classification.ClassificationType.Genre" Label="Genres" />
+    </MudItem>
+    <MudItem xs="6">
+        <MetadataMultiSelect T="Classification" AliasT="ClassificationAlias" @bind-SelectValue="Tags" MetadataValue="@MetadataTags" ExistingValues="@ExistingTags" ClassificationType="@Classification.ClassificationType.Tag" Label="Tags" />
+    </MudItem>
+    @foreach (var identifier in Book.Identifiers)
+    {
+        var readOnly = !identifier.Exists;
+        <MudItem xs="4">
+            <MetadataStringInput @bind-InputValue="identifier.Value" Label="@identifier.Key" ShowAdornment="true" @bind-AdornmentValue="@identifier.Exists" ReadOnly="@readOnly" AdornmentIconTrue="@Icons.Material.Filled.CheckCircle" AdornmentIconFalse="@Icons.Material.Filled.Block" AdornmentText="" />
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+    public Data.Book _book { get; set; }
+    [Parameter]
+    public Data.Book Book
+    {
+        get => _book;
+        set
+        {
+            if (Equals(_book, value)) return;
+            _book = value;
+            BookChanged.InvokeAsync(value);
+        }
+    }
+    [Parameter]
+    public EventCallback<Data.Book> BookChanged { get; set; }
+
+    public DateTime? PublishDate
+    {
+        get => Book.PublishDate != null ? Book.PublishDate : Book.BookMetadata.PublishDate;
+        set
+        {
+            if (value == Book.PublishDate) return;
+            if (value == Book.BookMetadata.PublishDate) Book.PublishDate = null;
+            else Book.PublishDate = value;
+        }
+    }
+
+    public bool? IsExplicit
+    {
+        get => Book.IsExplicit ?? Book.BookMetadata.IsExplicit;
+        set
+        {
+            if (value == Book.IsExplicit) return;
+            if (value == Book.BookMetadata.IsExplicit) Book.IsExplicit = null;
+            else Book.IsExplicit = value;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        GetIdentifiers();
+        LoadData();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+
+        LoadData();
+    }
+
+    private void LoadData(bool reloadData = false)
+    {
+        // Classifications
+        GetExistingClassifications();
+        GetMetadataClassifications();
+
+        // People
+        GetExistingPeople();
+        GetMetadataPeople();
+
+        // Series
+        GetExistingSeries();
+        GetMetadataSeries();
+
+        StateHasChanged();
+    }
+
+    private void GetIdentifiers()
+    {
+        foreach (var identifier in _pluginsService.GetPluginList().Select(p => p.Identifier).Distinct().Where(p => !string.IsNullOrWhiteSpace(p)).OrderBy(i => i))
+        {
+            if (!Book.Identifiers.Any(b => b.Key == identifier)) Book.Identifiers.Add(new BookIdentifier(identifier, ""));
+        }
+    }
+
+    #region Classifications
+
+    public List<Data.Classification> Genres
+    {
+        get { return Book.Classifications.Where(c => c.Type == Classification.ClassificationType.Genre).ToList(); }
+        set
+        {
+            if (Equals(Book.Classifications.Where(c => c.Type == Classification.ClassificationType.Genre).ToList(), value)) return;
+            Book.Classifications.RemoveAll(c => c.Type == Classification.ClassificationType.Genre);
+            Book.Classifications.AddRange(value);
+        }
+    }
+
+    public List<Data.Classification> Tags
+    {
+        get { return Book.Classifications.Where(c => c.Type == Classification.ClassificationType.Tag).ToList(); }
+        set
+        {
+            if (Equals(Book.Classifications.Where(c => c.Type == Classification.ClassificationType.Tag).ToList(), value)) return;
+            Book.Classifications.RemoveAll(c => c.Type == Classification.ClassificationType.Tag);
+            Book.Classifications.AddRange(value);
+        }
+    }
+
+    public List<Classification> ExistingGenres { get; set; }
+    public List<Classification> ExistingTags { get; set; }
+
+    public List<Classification> MetadataGenres { get; set; }
+    public List<Classification> MetadataTags { get; set; }
+
+    private void GetExistingClassifications()
+    {
+        ExistingGenres = _classificationService.GetAllClassifications(Book.BookMetadata).Where(c => c.Type == Classification.ClassificationType.Genre).ToList();
+        ExistingTags = _classificationService.GetAllClassifications(Book.BookMetadata).Where(c => c.Type == Classification.ClassificationType.Tag).ToList();
+    }
+
+    private void GetMetadataClassifications()
+    {
+        var existingClassifications = _classificationService.CleanClassification(
+            Book.BookMetadata.Genres.Select(g => new Classification() { Name = g, Type = Classification.ClassificationType.Genre })
+                .Concat(Book.BookMetadata.Tags.Select(t => new Classification() { Name = t, Type = Classification.ClassificationType.Tag })).ToList());
+
+        MetadataGenres = existingClassifications.Where(c => c.Type == Classification.ClassificationType.Genre).ToList();
+        MetadataTags = existingClassifications.Where(c => c.Type == Classification.ClassificationType.Tag).ToList();
+    }
+
+    #endregion
+
+    #region People
+
+    List<Person> ExistingPeople { get; set; }
+
+    List<Person> MetadataAuthors { get; set; }
+
+    List<Person> MetadataNarrators { get; set; }
+
+    private void GetExistingPeople()
+    {
+        ExistingPeople = _personService.GetAllPeople(Book.BookMetadata);
+    }
+
+    private void GetMetadataPeople()
+    {
+        MetadataAuthors = ExistingPeople.Where(p => Book.BookMetadata.Authors.Contains(p.Name) || p.Aliases.Any(a => Book.BookMetadata.Authors.Contains(a.Name))).ToList();
+        MetadataNarrators = ExistingPeople.Where(p => Book.BookMetadata.Narrators.Contains(p.Name) || p.Aliases.Any(a => Book.BookMetadata.Narrators.Contains(a.Name))).ToList();
+    }
+
+    #endregion
+
+    #region Series
+
+    List<Series> ExistingSeries { get; set; }
+
+    List<BookSeries> MetadataSeries { get; set; }
+
+    private void GetExistingSeries()
+    {
+        ExistingSeries = _seriesService.GetAllSeries(Book.BookMetadata);
+    }
+
+    private void GetMetadataSeries()
+    {
+        var metadataSeriesList = new List<BookSeries>();
+        foreach (var metadataSeries in Book.BookMetadata.Series)
+        {
+            var series = ExistingSeries.First(s => s.Name == metadataSeries.Name || s.Aliases.Any(a => a.Name == metadataSeries.Name));
+            metadataSeriesList.Add(new BookSeries(){Book = Book, Series = series, Sequence = metadataSeries.VolumeNumber});
+        }
+        MetadataSeries = metadataSeriesList;
+    }
+
+    #endregion
+}

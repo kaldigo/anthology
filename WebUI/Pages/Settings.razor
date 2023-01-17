@@ -1,11 +1,11 @@
 ﻿@page "/Settings"
 @using Anthology.Data
-@using Anthology.WebUI.Components
+@using Anthology.WebUI.Components.Inputs
 
 <PageTitle>Settings</PageTitle>
 
-@inject Anthology.Services.ISettingsService settingsService
-@inject MudBlazor.ISnackbar snackBar
+@inject Anthology.Services.ISettingsService _settingsService
+@inject MudBlazor.ISnackbar _snackBar
 
 <MudText Typo="Typo.h3">Settings</MudText>
 
@@ -49,14 +49,19 @@ else
 {
     private Data.Settings settings = null;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        settings = (Data.Settings)settingsService.GetSettings().Clone();
-        StateHasChanged();
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (firstRender)
+        {
+            settings = await _settingsService.GetSettingsAsync();
+            StateHasChanged();
+        }
     }
 
     private void Save()
     {
-        settingsService.SaveSettings(settings);
+        _settingsService.SaveSettings(settings);
     }
 }

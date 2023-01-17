@@ -1,0 +1,39 @@
+﻿@page "/Testing"
+@using Anthology.WebUI.Components.Modals
+
+<PageTitle>Testing</PageTitle>
+
+@inject Anthology.Services.ISettingsService _settingsService
+@inject MudBlazor.ISnackbar _snackBar
+@inject MudBlazor.IDialogService _dialog
+
+@code
+{
+
+    private Data.Book Book = new();
+    private bool IsNewBook = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ShowAddEditBookDialog(Book);
+    }
+    
+    async Task ShowAddEditBookDialog(Data.Book book)
+    {
+        var parameters = new DialogParameters { ["Book"] = Book, ["IsNewBook"] = IsNewBook };
+        var options = new DialogOptions() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true, NoHeader = true};
+
+        var dialog = await _dialog.ShowAsync<AddEditBook>(IsNewBook ? "New Book" : "Edit " + Book.ISBN, parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Cancelled)
+        {
+            SaveBook((Data.Book)result.Data, IsNewBook);
+        }
+    }
+
+    private void SaveBook(Data.Book book, bool isNewBook = false)
+    {
+        _snackBar.Add(isNewBook ? "Book Added" : "Book Updated", Severity.Success);
+    }
+}

@@ -1,0 +1,24 @@
+﻿@using Anthology.WebUI.Components.Elements;
+
+<MudGrid Class="mt-3">
+    @foreach (var book in Books)
+    {
+        <GridBookItem Book="book" EditBook="EditBookDialog"  />
+    }
+</MudGrid>
+
+@code {
+    [Parameter]
+    public List<Data.Book> Books { get; set; }
+
+    [Parameter]
+    public EventCallback<Data.Book> EditBookDialog { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        base.OnParametersSetAsync();
+        
+        StateHasChanged();
+    }
+
+}

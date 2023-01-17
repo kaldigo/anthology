@@ -15,19 +15,28 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
 builder.Host.ConfigureContainer<ContainerBuilder>(builder =>
 {
-    builder.RegisterType<DatabaseContext>();
+    builder.RegisterType<DatabaseContext>().InstancePerLifetimeScope();
     builder.RegisterType<BookService>().As<IBookService>().InstancePerLifetimeScope();
     builder.RegisterType<ClassificationService>().As<IClassificationService>().InstancePerLifetimeScope();
-    builder.RegisterType<MetadataService>().As<IMetadataService>().InstancePerLifetimeScope();
-    builder.RegisterType<PluginsService>().As<IPluginsService>().SingleInstance();
+    builder.RegisterType<PersonService>().As<IPersonService>().InstancePerLifetimeScope();
+    builder.RegisterType<ImageService>().As<IImageService>().InstancePerLifetimeScope();
     builder.RegisterType<SeriesService>().As<ISeriesService>().InstancePerLifetimeScope();
+    builder.RegisterType<PluginsService>().As<IPluginsService>().SingleInstance();
+    builder.RegisterType<MetadataService>().As<IMetadataService>().InstancePerLifetimeScope();
+    builder.RegisterType<ImportService>().As<IImportService>().InstancePerLifetimeScope();
+    builder.RegisterType<LibraryService>().As<ILibraryService>().InstancePerLifetimeScope();
+    builder.RegisterType<DownloadService>().As<IDownloadService>().InstancePerLifetimeScope();
     builder.RegisterType<SettingsService>().As<ISettingsService>().SingleInstance();
 });
 
 // Add services to the container.
 builder.Services.AddMvc(options => options.EnableEndpointRouting = false).SetCompatibilityVersion(CompatibilityVersion.Version_3_0);
 builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor();
+builder.Services.AddServerSideBlazor()
+    .AddHubOptions(opt =>
+    {
+        opt.DisableImplicitFromServicesParameters = true;
+    });
 builder.Services.AddDbContext<DatabaseContext>();
 builder.Services.AddMudServices();
 

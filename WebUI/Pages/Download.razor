@@ -1,0 +1,116 @@
+﻿@page "/Download"
+@using Anthology.WebUI.Components.Elements
+@using Anthology.WebUI.Components.Modals
+@using Anthology.Data
+@using Anthology.Plugins.Models
+
+@inject Anthology.Services.IDownloadService _downloadService
+@inject Anthology.Services.IBookService _bookService
+@inject MudBlazor.ISnackbar _snackBar
+@inject MudBlazor.IDialogService _dialog
+
+<PageTitle>Books</PageTitle>
+
+<MudPaper Elevation="25">
+    <MudToolBar>
+    </MudToolBar>
+</MudPaper>
+@if (DownloadList == null || BookList == null)
+{
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudGrid>
+        @foreach (var download in DownloadList)
+        {
+            var book = getLinkedBook(download);
+            bool isImported = book != null;
+            bool isInLibrary = book?.ExistsInLibrary ?? false;
+
+            string title = book != null ? (string.IsNullOrWhiteSpace(book.Title) ? book.BookMetadata.Title : book.Title) : download.Title;
+            string author = book != null ? (book.Authors.Count == 0 ? string.Join(", ", book.BookMetadata.Authors) : string.Join(", ", book.Authors)) : string.Join(", ", download.Author);
+            string series = book != null ? (book.Series.Count == 0 ? string.Join(", ", book.BookMetadata.Series.Select(s => s.Name + (string.IsNullOrWhiteSpace(s.VolumeNumber) ? "" : " #" + s.VolumeNumber))) : string.Join(", ", book.Series.Select(s => s.Series.Name + (string.IsNullOrWhiteSpace(s.Sequence) ? "" : " #" + s.Sequence)))) : null;
+            string cover = book != null ? (book.BookCovers.Count == 0 ? book.BookMetadata.Covers.First() : book.BookCovers.First().GetUrl()) : download.ImageURL;
+
+            string secondButtonText = isImported ? null : "Match";
+            <BookCard T="Plugins.Models.Download" Title="@title" Authors="@author" Series="@series" CoverURL="@cover" ShowStatus="@isImported" Status="@isInLibrary" ButtonItem="@download" ButtonText="Download" ButtonAction="@DownloadBook" SecondButtonText="@secondButtonText" />
+        }
+    </MudGrid>
+}
+
+@code
+{
+    List<Plugins.Models.Download> DownloadList { get; set; }
+    List<Data.Book> BookList { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (firstRender)
+        {
+            await LoadData();
+
+        }
+    }
+
+    async Task LoadData()
+    {
+        DownloadList = await _downloadService.GetDownloadList();
+        BookList = await _bookService.GetBooksAsync();
+        StateHasChanged();
+    }
+
+    Book? getLinkedBook(Plugins.Models.Download download)
+    {
+        return BookList.FirstOrDefault(b => b.Identifiers.Any(i => i.Key == download.Key && i.Value == download.Identifier));
+    }
+
+    void DownloadBook(Plugins.Models.Download download)
+    {
+        if (getLinkedBook(download) == null)
+        {
+            ShowAddEditBookDialog(download);
+        }
+        else
+        {
+            var book = BookList.First(b => b.Identifiers.Any(i => i.Key == download.Key && i.Value == download.Identifier));
+            book.Identifiers.Add(new BookIdentifier(download.Key, download.Identifier));
+            _bookService.SaveBook(book);
+            Task.Run(() => StartBookDownload(download));
+        }
+    }
+
+    async Task StartBookDownload(Plugins.Models.Download download)
+    {
+        await _downloadService.DownloadBook(download);
+
+        await LoadData();
+    }
+
+    async Task ShowAddEditBookDialog(Plugins.Models.Download download)
+    {
+        var book = new Book()
+        {
+            Identifiers = new List<BookIdentifier>()
+            {
+                new BookIdentifier(download.Key, download.Identifier)
+            },
+            BookMetadata = new Metadata()
+            {
+                Title = download.Title,
+                Authors = download.Author,
+                Covers = new List<string>(){ download.ImageURL }
+            }
+        };
+
+        var parameters = new DialogParameters { ["Book"] = book, ["IsNewBook"] = true, ["BookService"] = _bookService };
+        var options = new DialogOptions() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true, NoHeader = true };
+
+        var dialog = await _dialog.ShowAsync<AddEditBook>("Download Book", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && (string)result.Data == "Added") Task.Run(() => StartBookDownload(download));
+    }
+}

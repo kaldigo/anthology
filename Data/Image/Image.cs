@@ -25,15 +25,14 @@ namespace Anthology.Data
         }
         public string GetUrl(string id)
         {
-            string[] path = new string[] { };
-            path.Append(Environment.GetEnvironmentVariable("ANTHOLOGY_URL"));
-            path.Append("api/Image");
-            path.Append(GetCategoryName().Replace(" ", ""));
-            path.Append(id);
-            if (GetSubCategoryName() != "") path.Append(GetSubCategoryName().Replace(" ", ""));
-            path.Append(FileName);
+            List<string> path = new List<string>();
+            path.Add("/Images");
+            path.Add(GetCategoryName().Replace(" ", ""));
+            path.Add(id);
+            if (GetSubCategoryName() != "") path.Add(GetSubCategoryName().Replace(" ", ""));
+            path.Add(FileName);
 
-            return string.Join("/", path);
+            return string.Join("/", path.ToArray());
         }
 
         public string GetPath()
@@ -43,25 +42,20 @@ namespace Anthology.Data
 
         public string GetPath(string id)
         {
-            string[] path = new string[] { };
-            path.Append(Utils.FileUtils.GetConfigPath());
-            path.Append("Images");
-            path.Append(GetCategoryName());
-            path.Append(id);
-            if(GetSubCategoryName() != "") path.Append(GetSubCategoryName());
-            path.Append(FileName);
+            List<string> path = new List<string>();
+            if (GetCategoryName() == "Temp")
+            {
+                path.Add(Utils.FileUtils.GetTempPath());
+                path.Add("Media");
+            }
+            else path.Add(Utils.FileUtils.GetMediaPath());
+            path.Add("Images");
+            if (GetCategoryName() != "Temp") path.Add(GetCategoryName());
+            path.Add(id);
+            if (GetSubCategoryName() != "") path.Add(GetSubCategoryName());
+            path.Add(FileName);
 
-            return Path.Combine(path);
-        }
-
-        public void DeleteFile()
-        {
-            DeleteFile(GetID());
-        }
-
-        public void DeleteFile(string id)
-        {
-            File.Delete(GetPath(id));
+            return Path.Combine(path.ToArray());
         }
     }
     public class BookCover : Image
@@ -126,6 +120,22 @@ namespace Anthology.Data
         public override string GetID()
         {
             return Person.ID.ToString();
+        }
+    }
+    public class TempImage : Image
+    {
+        public Guid TempPath { get; set; } = Guid.NewGuid();
+        public override string GetCategoryName()
+        {
+            return "Temp";
+        }
+        public override string GetSubCategoryName()
+        {
+            return "";
+        }
+        public override string GetID()
+        {
+            return TempPath.ToString();
         }
     }
 }

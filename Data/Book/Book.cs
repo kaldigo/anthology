@@ -22,7 +22,7 @@ namespace Anthology.Data
         public DateTime? PublishDate { get; set; }
         public virtual List<Classification> Classifications { get; set; } = new List<Classification>();
         public string? Language { get; set; }
-        public bool IsExplicit { get; set; } = false;
+        public bool? IsExplicit { get; set; }
         public virtual List<BookCover> BookCovers { get; set; } = new List<BookCover>();
         public virtual List<AudiobookCover> AudiobookCovers { get; set; } = new List<AudiobookCover>();
         public virtual List<BookImage> Images { get; set; } = new List<BookImage>();
@@ -42,6 +42,8 @@ namespace Anthology.Data
             }
         }
         public DateTime? DateFetchedMetadata { get; set; }
+        [NotMapped]
+        public bool ExistsInLibrary { get; set; } = false;
         public object this[string PropertyName]
         {
             get
@@ -89,6 +91,58 @@ namespace Anthology.Data
             }
 
             return newID;
+        }
+
+        public void Update(Book book)
+        {
+            Title = book.Title;
+            Subtitle = book.Subtitle;
+            SubtitleLock = book.SubtitleLock;
+            Authors = book.Authors;
+            Narrators = book.Narrators;
+            Series = book.Series;
+            Description = book.Description;
+            Publisher = book.Publisher;
+            PublishDate = book.PublishDate;
+            Classifications = book.Classifications;
+            Language = book.Language;
+            IsExplicit = book.IsExplicit;
+            BookCovers = book.BookCovers;
+            AudiobookCovers = book.AudiobookCovers;
+            Images = book.Images;
+            Identifiers = book.Identifiers.Select(i => i.Clone()).ToList();
+            BookMetadata = book.BookMetadata;
+            DateFetchedMetadata = book.DateFetchedMetadata;
+            ExistsInLibrary = book.ExistsInLibrary;
+
+        }
+
+        public Book Clone()
+        {
+            var book = new Book()
+            {
+                ISBN = this.ISBN,
+                Title = this.Title,
+                Subtitle = this.Subtitle,
+                SubtitleLock = this.SubtitleLock,
+                Authors = this.Authors,
+                Narrators = this.Narrators,
+                Series = this.Series,
+                Description = this.Description,
+                Publisher = this.Publisher,
+                PublishDate = this.PublishDate,
+                Classifications = this.Classifications,
+                Language = this.Language,
+                IsExplicit = this.IsExplicit,
+                BookCovers = this.BookCovers,
+                AudiobookCovers = this.AudiobookCovers,
+                Images = this.Images,
+                Identifiers = this.Identifiers.Select(i => i.Clone()).ToList(),
+                BookMetadata = this.BookMetadata,
+                DateFetchedMetadata = this.DateFetchedMetadata,
+                ExistsInLibrary = this.ExistsInLibrary,
+            };
+            return book;
         }
     }
 }

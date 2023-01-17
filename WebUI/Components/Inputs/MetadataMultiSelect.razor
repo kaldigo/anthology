@@ -1,0 +1,111 @@
+﻿@typeparam T
+@typeparam AliasT
+@using Anthology.Utils
+
+<style>
+
+    .metadatamultiselect-container {
+        padding: 8px 14px;
+        width: 100%;
+        max-width: 100%;
+        height: 100%;
+    }
+
+        .metadatamultiselect-container .mud-chip button {
+            display: none;
+        }
+
+        .metadatamultiselect-container .mud-chip:hover button {
+            display: flex;
+        }
+
+    .metadatamultiselect-autocomplete,
+    .metadatamultiselect-autocomplete .mud-input {
+        margin: 0px !important;
+    }
+
+        .metadatamultiselect-autocomplete .mud-input-slot {
+            padding: 2.5px 0px !important;
+        }
+</style>
+
+<div class="mud-input-control mud-input-control-margin-dense mud-input-input-control metadatamultiselect">
+    <div class="mud-input-control-input-container">
+        <div class="mud-input mud-input-outlined mud-input-margin-dense mud-shrink">
+            <div class="metadatamultiselect-container d-flex flex-wrap gap-2">
+                @foreach (var selectedOption in SelectValue)
+                {
+                    <MudChip Class="ma-0" Color="Color.Primary" Size="Size.Small" Text="@typeof(T).GetProperty("Name").GetValue(selectedOption).ToString()" Value="@selectedOption" OnClose="RemoveSelectedOption" />
+                }
+                <AutocompleteWithCustom Class="metadatamultiselect-autocomplete" SearchFunc="@Search" DisableUnderLine="true" ClearOnSelect="true" SelectOption="AddSelectedOption" />
+            </div>
+            <div class="mud-input-slot mud-input-root mud-input-root-outlined mud-input-root-margin-dense" style="display: none" tabindex="-1"></div>
+            <div class="mud-input-outlined-border"></div>
+        </div>
+        <label class="mud-input-label mud-input-label-animated mud-input-label-outlined mud-input-label-margin-dense mud-input-label-inputcontrol">@Label</label>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Label { get; set; }
+
+    public List<T> _selectValue { get; set; } = new();
+    [Parameter]
+    public List<T> SelectValue
+    {
+        get => _selectValue.Count == 0 ? MetadataValue : _selectValue;
+        set
+        {
+            if (ListUtils.CompareLists(_selectValue, value)) return;
+            _selectValue = value;
+            if (ListUtils.CompareLists(value, MetadataValue) || value.Count == 0) SelectValueChanged.InvokeAsync(new List<T>());
+            else SelectValueChanged.InvokeAsync(value);
+        }
+    }
+    [Parameter]
+    public EventCallback<List<T>> SelectValueChanged { get; set; }
+
+    [Parameter]
+    public List<T> ExistingValues { get; set; }
+    [Parameter]
+    public List<T> MetadataValue { get; set; }
+
+    [Parameter]
+    public Data.Classification.ClassificationType ClassificationType { get; set; }
+
+    private async Task<IEnumerable<string>> Search(string value)
+    {
+        var filteredValues = ExistingValues.Where(e => !SelectValue.Any(s => typeof(T).GetProperty("Name").GetValue(s).ToString().Contains(typeof(T).GetProperty("Name").GetValue(e).ToString(), StringComparison.InvariantCultureIgnoreCase)));
+        if (!string.IsNullOrEmpty(value))
+        {
+            filteredValues = filteredValues.Where(e =>
+                typeof(T).GetProperty("Name").GetValue(e).ToString().Contains(value, StringComparison.InvariantCultureIgnoreCase)
+                || ((List<AliasT>)(typeof(T).GetProperty("Aliases").GetValue(e))).Any(a => typeof(AliasT).GetProperty("Name").GetValue(a).ToString().Contains(value, StringComparison.InvariantCultureIgnoreCase)));
+        }
+        return filteredValues.Select(e => typeof(T).GetProperty("Name").GetValue(e).ToString());
+    }
+
+    void AddSelectedOption(string autocompleteValue)
+    {
+        var option = ExistingValues.FirstOrDefault(e => typeof(T).GetProperty("Name").GetValue(e).ToString() == autocompleteValue);
+        if (option == null)
+        {
+            option = Activator.CreateInstance<T>();
+            typeof(T).GetProperty("Name").SetValue(option, autocompleteValue);
+            if (typeof(T).Name == "Classification")
+            {
+                typeof(T).GetProperty("Type").SetValue(option, ClassificationType);
+            }
+        }
+
+        ExistingValues.Add(option);
+        SelectValue = SelectValue.Concat(new List<T>() {option}).ToList();
+    }
+
+    void RemoveSelectedOption(MudChip chip)
+    {
+        SelectValue.Remove((T)chip.Value);
+    }
+
+}
