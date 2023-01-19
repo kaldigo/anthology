@@ -1,0 +1,83 @@
+﻿<MudTextField @bind-Value="InputValue" @bind-AdornmentIcon="AdornmentIcon" 
+              Label="@Label" HelperText="@(InputValue != MetadataValue ? MetadataValue : "")" Adornment="@(ShowAdornment ? Adornment.End : Adornment.None)" ReadOnly="@ReadOnly" AdornmentAriaLabel="@AdornmentText"
+              Variant="Variant.Outlined" Margin="Margin.Dense" OnAdornmentClick="ToggleLock" Lines="@Lines"></MudTextField>
+
+@code {
+    [Parameter]
+    public string Label { get; set; }
+
+    public string _inputValue { get; set; }
+    [Parameter]
+    public string InputValue
+    {
+        get => string.IsNullOrWhiteSpace(_inputValue) && !AdornmentValue ? MetadataValue : _inputValue;
+        set
+        {
+            if (_inputValue == value) return;
+            _inputValue = value;
+            if (value == MetadataValue || string.IsNullOrWhiteSpace(value)) InputValueChanged.InvokeAsync(null);
+            else InputValueChanged.InvokeAsync(value);
+        }
+    }
+    [Parameter]
+    public EventCallback<string> InputValueChanged { get; set; }
+
+    public bool _adornmentValue { get; set; } = false;
+    [Parameter]
+    public bool AdornmentValue
+    {
+        get => _adornmentValue;
+        set
+        {
+            if (_adornmentValue == value) return;
+            _adornmentValue = value;
+            AdornmentValueChanged.InvokeAsync(value);
+        }
+    }
+    [Parameter]
+    public EventCallback<bool> AdornmentValueChanged { get; set; }
+
+    [Parameter]
+    public string MetadataValue { get; set; }
+
+    [Parameter]
+    public bool ReadOnly { get; set; } = false;
+
+    [Parameter]
+    public string AdornmentText { get; set; }
+
+    [Parameter]
+    public bool ShowAdornment { get; set; } = false;
+
+    [Parameter]
+    public string AdornmentIconTrue { get; set; } = Icons.Material.Filled.Lock;
+
+    [Parameter]
+    public string AdornmentIconFalse { get; set; } = Icons.Material.Filled.LockOpen;
+
+    [Parameter]
+    public int Lines { get; set; } = 1;
+
+    string AdornmentIcon;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AdornmentIcon = AdornmentValue ? AdornmentIconTrue : AdornmentIconFalse;
+    }
+
+    void ToggleLock()
+    {
+        if (AdornmentValue)
+        {
+            AdornmentIcon = AdornmentIconFalse;
+            InputValue = null;
+            AdornmentValue = false;
+        }
+        else
+        {
+            AdornmentIcon = AdornmentIconTrue;
+            AdornmentValue = true;
+        }
+    }
+
+}

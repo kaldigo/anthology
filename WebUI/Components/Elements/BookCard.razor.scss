@@ -1,0 +1,47 @@
+﻿$width: 200px;
+$height: calc(($width / 5) * 8);
+
+.cover-card {
+    width: $width;
+
+    .card-header {
+        display: block;
+        height: $height;
+    }
+
+    .cover-img,
+    .cover-img-outer,
+    .cover-img-inner {
+        width: $width;
+        height: $height;
+    }
+
+    .cover-img-outer,
+    .cover-img-inner {
+        background-position: center;
+        background-repeat: no-repeat;
+        position: relative;
+    }
+
+    .cover-img {
+        overflow: hidden
+    }
+
+    .cover-img-outer {
+        background-size: cover;
+        filter: blur(10px);
+        -webkit-filter: blur(10px);
+    }
+
+    .cover-img-inner {
+        top: calc($height * -1);
+        background-size: contain;
+    }
+
+    .status-icon {
+        display: block;
+        position: relative;
+        top: -28px;
+        left: 172px;
+    }
+}

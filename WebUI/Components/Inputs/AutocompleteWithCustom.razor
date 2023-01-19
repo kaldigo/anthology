@@ -1,0 +1,61 @@
+﻿<MudAutocomplete Class="@AutocompleteClass" T="string" @ref="_autocomplete" @bind-Value="@Value" SearchFunc="@SearchFunc" Adornment="Adornment.None"
+                 CoerceValue="true" SelectValueOnTab="true" DisableUnderLine="@DisableUnderLine" ResetValueOnEmptyText="true" Variant="@Variant"
+                 IsOpenChanged="AddSelectedOption" OnKeyUp="AddNewOption" />
+
+@code {
+
+    [Parameter]
+    public string Label { get; set; } = null;
+
+    [Parameter]
+    public string Value { get; set; } = "";
+
+    [Parameter]
+    public string Class { get; set; } = "";
+
+    [Parameter]
+    public MudBlazor.Variant Variant { get; set; } = Variant.Text;
+
+    [Parameter]
+    public MudBlazor.Adornment Adornment { get; set; } = Adornment.None;
+
+    [Parameter]
+    public bool DisableUnderLine { get; set; } = false;
+
+    [Parameter]
+    public bool ClearOnSelect { get; set; } = false;
+
+    [Parameter]
+    public EventCallback<string> SelectOption { get; set; }
+
+    [Parameter]
+    public Func<string, Task<IEnumerable<string>>> SearchFunc { get; set; }
+
+    private MudAutocomplete<string> _autocomplete;
+
+    string AutocompleteClass { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        AutocompleteClass = "flex-grow-1 " + Class;
+    }
+
+    void AddNewOption(KeyboardEventArgs keyboardEvent)
+    {
+        if (keyboardEvent.Code == "Enter")
+        {
+            _autocomplete.ToggleMenu();
+        }
+    }
+
+    void AddSelectedOption()
+    {
+        if (!_autocomplete.IsOpen && !string.IsNullOrWhiteSpace(_autocomplete.Value))
+        {
+            SelectOption.InvokeAsync(_autocomplete.Value);
+
+            if (ClearOnSelect) _autocomplete.Clear();
+        }
+    }
+
+}

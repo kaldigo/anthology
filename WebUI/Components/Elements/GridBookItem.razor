@@ -1,0 +1,33 @@
+﻿<BookCard T="Data.Book" Text1="@Title" Text2="@Authors" Text3="@Series" Text4="@Book.ISBN" CoverURL="@CoverURL" ButtonText="Edit" ButtonItem="@Book" ButtonAction="@EditBook" ShowStatus="true" Status="@Book.ExistsInLibrary" />
+
+@code {
+    [Parameter]
+    public Data.Book Book { get; set; }
+
+    [Parameter]
+    public EventCallback<Data.Book> EditBook { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+
+        StateHasChanged();
+    }
+
+
+
+    string Title => !string.IsNullOrWhiteSpace(Book.Title) ? Book.Title : Book.BookMetadata.Title;
+    string Authors => Book.Authors.Count != 0 ? string.Join(", ", Book.Authors.Select(p => p.Name)) : string.Join(", ", Book.BookMetadata.Authors);
+    string Series => Book.Series.Count != 0 ? string.Join(", ", Book.Series.Select(s => s.Series.Name + (string.IsNullOrWhiteSpace(s.Sequence) ? "" : " #" + s.Sequence))) : string.Join(", ", Book.BookMetadata.Series.Select(s => s.Name + (string.IsNullOrWhiteSpace(s.VolumeNumber) ? "" : " #" + s.VolumeNumber)));
+
+    string CoverURL
+    {
+        get
+        {
+            if (Book.BookCovers.Any()) return Book.BookCovers.First().GetUrl();
+            if (Book.AudiobookCovers.Any()) return Book.AudiobookCovers.First().GetUrl();
+            if (Book.BookMetadata.Covers.Any()) return Book.BookMetadata.Covers.First();
+            return "https://bookstoreromanceday.org/wp-content/uploads/2020/08/book-cover-placeholder.png";
+        }
+    }
+}

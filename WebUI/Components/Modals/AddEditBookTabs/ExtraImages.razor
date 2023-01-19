@@ -1,0 +1,100 @@
+﻿@using Anthology.WebUI.Components.Elements
+@using Anthology.Data
+@using Anthology.Utils
+
+@inject Anthology.Services.IImageService _imageService
+
+<MudGrid>
+    <MudItem xs="12">
+        <div class="d-flex gap-4 mb-4">
+            <MudFileUpload T="IBrowserFile" FilesChanged="AddBookImage">
+            <ButtonTemplate>
+                <MudButton HtmlTag="label"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           for="@context">
+                    Upload
+                </MudButton>
+            </ButtonTemplate>
+        </MudFileUpload>
+        </div>
+
+        <ImageScrollGallary Images="@BookImages" NewImages="@NewBookImages" DeleteNewImage="@DeleteNewBookImage" DeleteImage="@DeleteBookImage"/>
+    </MudItem>
+</MudGrid>
+
+@code {
+    public Data.Book _book { get; set; }
+
+    [Parameter]
+    public Data.Book Book
+    {
+        get => _book;
+        set
+        {
+            if (Equals(_book, value)) return;
+            _book = value;
+            BookChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<Data.Book> BookChanged { get; set; }
+
+    public List<TempImage> _newBookImages { get; set; } = new();
+
+    [Parameter]
+    public List<TempImage> NewBookImages
+    {
+        get => _newBookImages;
+        set
+        {
+            if (ListUtils.CompareLists(_newBookImages, value)) return;
+            _newBookImages = value;
+            NewBookImagesChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<List<TempImage>> NewBookImagesChanged { get; set; }
+
+    public List<string> _coversToDelete { get; set; } = new();
+
+    [Parameter]
+    public List<string> CoversToDelete
+    {
+        get => _coversToDelete;
+        set
+        {
+            if (ListUtils.CompareLists(_coversToDelete, value)) return;
+            _coversToDelete = value;
+            CoversToDeleteChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<List<string>> CoversToDeleteChanged { get; set; }
+
+    List<Data.Image> BookImages => Book.Images.Select(c => (Data.Image)c).ToList();
+
+    async Task AddBookImage(IBrowserFile file)
+    {
+        var image = await _imageService.SaveTempImage(file);
+        NewBookImages = NewBookImages.Concat(new List<TempImage>() { image }).ToList();
+    }
+
+    async Task DeleteNewBookImage(TempImage file)
+    {
+        _imageService.DeleteImage(file);
+        NewBookImages = NewBookImages.Where(i => i.TempPath != file.TempPath).ToList();
+    }
+
+    async Task DeleteBookImage(Image image)
+    {
+        var cover = (Data.BookImage)image;
+        CoversToDelete = CoversToDelete.Concat(new List<string>() { cover.GetPath() }).ToList();
+        Book.Images.Remove(cover);
+    }
+
+}

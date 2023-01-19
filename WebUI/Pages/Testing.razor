@@ -1,0 +1,45 @@
+﻿@page "/Testing"
+@using Anthology.WebUI.Components.Modals
+@using Anthology.Data
+@using Anthology.WebUI.Components.Elements
+
+<PageTitle>Testing</PageTitle>
+
+@inject Anthology.Services.IBookService _bookService
+@inject Anthology.Services.IImportService _importService
+@inject Anthology.Services.IPluginsService _pluginsService
+@inject NavigationManager NavManager
+
+<MudButton OnClick="ImportBooks" Variant="Variant.Filled" Color="Color.Primary">Import</MudButton>
+
+@code
+{
+    async Task ImportBooks()
+    {
+        var bookList = await _bookService.GetBooksAsync();
+        var importList = await _importService.GetImportList();
+        importList = importList.Where(i =>
+        {
+            var isbn = i.Identifiers.Any(i => i.Key == "ISBN") ? i.Identifiers.FirstOrDefault(i => i.Key == "ISBN").Value : null;
+            if (isbn == null) return true;
+            return !bookList.Any(b => b.ISBN == isbn);
+        }).ToList();
+        foreach (var import in importList)
+        {
+            var identifiers = _pluginsService.GetPluginList().Select(p => p.Identifier).Distinct().Where(p => !string.IsNullOrWhiteSpace(p) && p != import.Key).OrderBy(i => i);
+            var isbn = import.Identifiers.Any(i => i.Key == "ISBN") ? import.Identifiers.FirstOrDefault(i => i.Key == "ISBN").Value : null;
+            var book = new Data.Book()
+                {
+                    ISBN = isbn
+                };
+            book.BookMetadata = import.Metadata;
+            book.Identifiers = import.Identifiers.Where(i => i.Key != "ISBN").Select(i => new BookIdentifier(i.Key, i.Value)).ToList();
+
+            book.Identifiers.Add(new Data.BookIdentifier(import.Key, import.Identifier));
+
+            _bookService.SaveBook(book, false, true);
+        }
+        NavManager.NavigateTo("/Books");
+
+    }
+}

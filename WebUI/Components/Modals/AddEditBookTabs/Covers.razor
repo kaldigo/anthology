@@ -1,0 +1,163 @@
+﻿@using Anthology.WebUI.Components.Elements
+@using Anthology.Data
+@using Anthology.Utils
+
+@inject Anthology.Services.IImageService _imageService
+
+<MudGrid>
+    <MudItem xs="12">
+        <div class="d-flex gap-4 mb-4">
+        <MudText Typo="Typo.h6">Book Covers</MudText>
+
+        <MudFileUpload T="IBrowserFile" FilesChanged="AddBookCover">
+            <ButtonTemplate>
+                <MudButton HtmlTag="label"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           for="@context">
+                    Upload
+                </MudButton>
+            </ButtonTemplate>
+        </MudFileUpload>
+        </div>
+
+        <ImageScrollGallary Images="@BookCovers" NewImages="@NewBookCovers" DeleteNewImage="@DeleteNewBookCover" DeleteImage="@DeleteBookCover"/>
+    </MudItem>
+    <MudItem Class="d-flex gap-4" xs="12">
+        <MudText Typo="Typo.h6">Audiobook Covers</MudText>
+
+        <MudFileUpload T="IBrowserFile" FilesChanged="AddAudiobookCover">
+            <ButtonTemplate>
+                <MudButton HtmlTag="label"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           for="@context">
+                    Upload
+                </MudButton>
+            </ButtonTemplate>
+        </MudFileUpload>
+
+        <ImageScrollGallary Images="@AudiobookCovers" NewImages="@NewAudiobookCovers" DeleteNewImage="@DeleteNewAudiobookCover" DeleteImage="@DeleteAudiobookCover" />
+    </MudItem>
+    <MudItem xs="12">
+        <MudText Typo="Typo.h6">Metadata Covers</MudText>
+        <ImageScrollGallary Images="@MetadataImages" ExternalImages="true" />
+    </MudItem>
+</MudGrid>
+
+@code {
+    public Data.Book _book { get; set; }
+
+    [Parameter]
+    public Data.Book Book
+    {
+        get => _book;
+        set
+        {
+            if (Equals(_book, value)) return;
+            _book = value;
+            BookChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<Data.Book> BookChanged { get; set; }
+
+    public List<TempImage> _newBookCovers { get; set; } = new();
+
+    [Parameter]
+    public List<TempImage> NewBookCovers
+    {
+        get => _newBookCovers;
+        set
+        {
+            if (ListUtils.CompareLists(_newBookCovers, value)) return;
+            _newBookCovers = value;
+            NewBookCoversChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<List<TempImage>> NewBookCoversChanged { get; set; }
+
+    public List<TempImage> _newAudiobookCovers { get; set; } = new();
+
+    [Parameter]
+    public List<TempImage> NewAudiobookCovers
+    {
+        get => _newAudiobookCovers;
+        set
+        {
+            if (ListUtils.CompareLists(_newAudiobookCovers, value)) return;
+            _newAudiobookCovers = value;
+            NewAudiobookCoversChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<List<TempImage>> NewAudiobookCoversChanged { get; set; }
+
+    public List<string> _coversToDelete { get; set; } = new();
+
+    [Parameter]
+    public List<string> CoversToDelete
+    {
+        get => _coversToDelete;
+        set
+        {
+            if (ListUtils.CompareLists(_coversToDelete, value)) return;
+            _coversToDelete = value;
+            CoversToDeleteChanged.InvokeAsync(value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback<List<string>> CoversToDeleteChanged { get; set; }
+
+    List<Data.Image> BookCovers => Book.BookCovers.Select(c => (Data.Image)c).ToList();
+
+    List<Data.Image> AudiobookCovers => Book.AudiobookCovers.Select(c => (Data.Image)c).ToList();
+
+    List<Data.Image> MetadataImages => Book.BookMetadata.Covers.Select(c => (Data.Image)(new Data.BookCover() { FileName = c })).ToList();
+
+    async Task AddBookCover(IBrowserFile file)
+    {
+        var image = await _imageService.SaveTempImage(file);
+        NewBookCovers = NewBookCovers.Concat(new List<TempImage>() { image }).ToList();
+    }
+
+    async Task AddAudiobookCover(IBrowserFile file)
+    {
+        var image = await _imageService.SaveTempImage(file);
+        NewAudiobookCovers = NewAudiobookCovers.Concat(new List<TempImage>() { image }).ToList();
+    }
+
+    async Task DeleteNewBookCover(TempImage file)
+    {
+        _imageService.DeleteImage(file);
+        NewBookCovers = NewBookCovers.Where(i => i.TempPath != file.TempPath).ToList();
+    }
+
+    async Task DeleteNewAudiobookCover(TempImage file)
+    {
+        _imageService.DeleteImage(file);
+        NewAudiobookCovers = NewAudiobookCovers.Where(i => i.TempPath != file.TempPath).ToList();
+    }
+
+    async Task DeleteBookCover(Image image)
+    {
+        var cover = (Data.BookCover)image;
+        CoversToDelete = CoversToDelete.Concat(new List<string>() { cover.GetPath() }).ToList();
+        Book.BookCovers.Remove(cover);
+    }
+
+    async Task DeleteAudiobookCover(Image image)
+    {
+        var cover = (Data.AudiobookCover)image;
+        CoversToDelete = CoversToDelete.Concat(new List<string>() { cover.GetPath() }).ToList();
+        Book.AudiobookCovers.Remove(cover);
+    }
+
+}

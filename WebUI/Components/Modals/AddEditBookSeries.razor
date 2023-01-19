@@ -1,0 +1,91 @@
+﻿@using Anthology.WebUI.Components.Inputs
+
+<MudDialog Class="add-edit-book-series-dialog">
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="8">
+                <MudAutocomplete T="string" @ref="_autocomplete" SearchFunc="@Search" Adornment="Adornment.None"
+                                 CoerceValue="true" SelectValueOnTab="true" ResetValueOnEmptyText="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 IsOpenChanged="@AddSelectedOption" OnKeyUp="AddNewOption" />
+            </MudItem>
+            <MudItem xs="4">
+                <MudTextField @bind-Value="BookSeries.Sequence" Label="Sequence" Adornment="Adornment.None" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Success" OnClick="SaveSeries">@(IsNewBookSeries ? "Add" : "Save") Series</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public Data.BookSeries BookSeries { get; set; } = new();
+
+    public List<Data.Series> _existingSeries { get; set; }
+    [Parameter]
+    public List<Data.Series> ExistingSeries
+    {
+        get => _existingSeries;
+        set
+        {
+            if (Equals(_existingSeries, value) || (_existingSeries is {Count: 0 } && value.Count == 0)) return;
+            _existingSeries = value;
+            ExistingSeriesChange.InvokeAsync(value);
+        }
+    }
+    [Parameter]
+    public EventCallback<List<Data.Series>> ExistingSeriesChange { get; set; }
+
+    [Parameter]
+    public bool IsNewBookSeries { get; set; } = false;
+
+    private MudAutocomplete<string> _autocomplete;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void SaveSeries()
+    {
+        MudDialog.Close(DialogResult.Ok(BookSeries));
+    }
+
+    private async Task<IEnumerable<string>> Search(string value)
+    {
+        IEnumerable<Data.Series> filteredValues = ExistingSeries;
+        if (BookSeries.Series != null)
+        {
+            filteredValues = filteredValues.Where(e => e.Name == BookSeries.Series.Name || e.Aliases.Any(a => a.Name == BookSeries.Series.Name));
+        }
+        if (!string.IsNullOrEmpty(value))
+        {
+            filteredValues = filteredValues.Where(e => e.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase) || e.Aliases.Any(a => a.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)));
+        }
+        return filteredValues.Select(e => e.Name);
+    }
+
+    void AddNewOption(KeyboardEventArgs keyboardEvent)
+    {
+        if (keyboardEvent.Code == "Enter")
+        {
+            _autocomplete.ToggleMenu();
+        }
+    }
+
+    void AddSelectedOption()
+    {
+        if (!_autocomplete.IsOpen && !string.IsNullOrWhiteSpace(_autocomplete.Value))
+        {
+            var series = ExistingSeries.FirstOrDefault(e => e.Name == _autocomplete.Value);
+            if (series == null)
+            {
+                series = new Data.Series() { Name = _autocomplete.Value };
+                ExistingSeries.Add(series);
+            }
+            BookSeries.Series = series;
+        }
+    }
+}

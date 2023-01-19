@@ -1,0 +1,72 @@
+﻿@using Anthology.WebUI.Components.Elements;
+@using BlazorPro.BlazorSize
+@using Anthology.Data
+@using Anthology.Services
+
+@inject Anthology.Services.IPluginsService _pluginsService
+
+<div class="mt-3">
+    <MudTable T="Book" Items="@Books" Dense="false" Hover="true" Bordered="false" Striped="false">
+        <HeaderContent>
+            <MudTh>ISBN</MudTh>
+            <MudTh>Title</MudTh>
+            <MudTh>Authors</MudTh>
+            <MudTh>Series</MudTh>
+            <MudTh>Metadata</MudTh>
+            <MudTh>Action</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="ISBN">@context.ISBN</MudTd>
+            <MudTd DataLabel="Title">@(!string.IsNullOrWhiteSpace(context.Title) ? context.Title : context.BookMetadata.Title)</MudTd>
+                <MudTd DataLabel="Authors">@(context.Authors.Count != 0 ? string.Join(", ", context.Authors.Select(p => p.Name)) : string.Join(", ", context.BookMetadata.Authors))</MudTd>
+                <MudTd DataLabel="Series">@(context.Series.Count != 0 ? string.Join(", ", context.Series.Select(s => s.Series.Name + (string.IsNullOrWhiteSpace(s.Sequence) ? "" : " #" + s.Sequence))) : string.Join(", ", context.BookMetadata.Series.Select(s => s.Name + (string.IsNullOrWhiteSpace(s.VolumeNumber) ? "" : " #" + s.VolumeNumber))))</MudTd>
+            <MudTd DataLabel="Metadata"><MudIcon Icon="@(GetMetadataStatus(context) ? Icons.Material.Filled.Check : Icons.Material.Filled.Close)" Color="Color.Default" /></MudTd>
+                <MudTd DataLabel="Action"><MudButton Class="pa-0" Style="width: 100%;" Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" OnClick="@(() => EditBookDialog.InvokeAsync(context))">Edit</MudButton></MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+
+    </div>
+
+    @code {
+    [Parameter]
+    public List<Data.Book> Books { get; set; }
+
+    [Parameter]
+    public EventCallback<Data.Book> EditBookDialog { get; set; }
+
+    List<string> MetadataIdentifiers { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await GetMetadataIdentifiers();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        base.OnParametersSetAsync();
+
+        StateHasChanged();
+    }
+
+    async Task GetMetadataIdentifiers()
+    {
+        MetadataIdentifiers = _pluginsService.GetPluginList().Where(p => p.Type == Plugin.PluginType.Metadata).Select(p => p.Identifier).ToList();
+    }
+
+    bool GetMetadataStatus(Book book)
+    {
+        foreach (var identifierKey in MetadataIdentifiers)
+        {
+            var bookIdentifier = book.Identifiers.FirstOrDefault(i => i.Key == identifierKey);
+            if (bookIdentifier == null) 
+                return false;
+            if (string.IsNullOrWhiteSpace(bookIdentifier.Value) && bookIdentifier.Exists) 
+                return false;
+        }
+        return true;
+    }
+}

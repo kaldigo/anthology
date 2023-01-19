@@ -1,6 +1,6 @@
 ﻿namespace Anthology.Utils
 {
-    public static class FileUtils
+    public static partial class FileUtils
     {
         public static string GetConfigPath()
         {
@@ -8,8 +8,10 @@
 #if DEBUG
             var rootPath = Path.GetFullPath("AppData/Config/");
 #else
-            var rootPath = "/config/";
+            var rootPath = "/anthology/config/";
 #endif
+
+            Directory.CreateDirectory(rootPath);
 
             return rootPath;
         }
@@ -19,8 +21,10 @@
 #if DEBUG
             var rootPath = Path.GetFullPath("AppData/Media/");
 #else
-            var rootPath = "/data/";
+            var rootPath = "/anthology/data/";
 #endif
+
+            Directory.CreateDirectory(rootPath);
 
             return rootPath;
         }
@@ -30,8 +34,23 @@
 #if DEBUG
             var rootPath = Path.GetFullPath("AppData/Downloads/");
 #else
-            var rootPath = "/downloads/";
+            var rootPath = "/anthology/downloads/";
 #endif
+
+            Directory.CreateDirectory(rootPath);
+
+            return rootPath;
+        }
+        public static string GetTempPath()
+        {
+
+#if DEBUG
+            var rootPath = Path.GetFullPath("AppData/Temp/");
+#else
+            var rootPath = "/anthology/temp/";
+#endif
+
+            Directory.CreateDirectory(rootPath);
 
             return rootPath;
         }

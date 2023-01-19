@@ -1,0 +1,56 @@
+﻿@using Anthology.Plugins.Models
+@using Anthology.WebUI.Components.Elements
+
+<MudDialog Class="match-to-book-dialog">
+    <DialogContent>
+        <MudTextField Class="mb-5" @bind-Value="SearchQuery" Label="Search" Variant="Variant.Text"></MudTextField>
+        <MudGrid Class="mb-1 overflow-x-auto" Style="max-height: 70vh;">
+            @foreach (var book in FilteredBookList)
+            {
+                string title = string.IsNullOrWhiteSpace(book.Title) ? book.BookMetadata.Title : book.Title;
+                string author = book.Authors.Count == 0 ? string.Join(", ", book.BookMetadata.Authors) : string.Join(", ", book.Authors);
+                string series = book.Series.Count == 0 ? string.Join(", ", book.BookMetadata.Series.Select(s => s.Name + (string.IsNullOrWhiteSpace(s.VolumeNumber) ? "" : " #" + s.VolumeNumber))) : string.Join(", ", book.Series.Select(s => s.Series.Name + (string.IsNullOrWhiteSpace(s.Sequence) ? "" : " #" + s.Sequence)));
+                string cover = book.BookCovers.Count == 0 ? book.BookMetadata.Covers.First() : book.BookCovers.First().GetUrl();
+
+                <BookCard T="Data.Book" Title="@title" Authors="@author" Series="@series" CoverURL="@cover" ButtonItem="book" ButtonText="Match" ButtonAction="@MatchBook"/>
+            }
+        </MudGrid>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public string SearchQuery { get; set; }
+
+    [Parameter]
+    public List<Data.Book> BookList { get; set; }
+
+    private List<Data.Book> FilteredBookList => FilterBookList();
+    
+    async Task MatchBook(Data.Book book)
+    {
+        MudDialog.Close(DialogResult.Ok(book));
+    }
+
+    bool Search(Data.Book book)
+    {
+        var title = string.IsNullOrWhiteSpace(book.Title) ? book.BookMetadata.Title : book.Title;
+        var authors = book.Authors.Count == 0 ? book.BookMetadata.Authors : book.Authors.Select(a => a.Name);
+        var series = book.Series.Count == 0 ? book.BookMetadata.Series.Select(s => s.Name) : book.Series.Select(s => s.Series.Name);
+
+        var compare = title + (authors.Count() != 0 ? " " + string.Join(" ", authors) : null) + (series.Count() != 0 ? " " + string.Join(" ", series) : null);
+
+        if (string.IsNullOrWhiteSpace(SearchQuery)) return true;
+        if (Utils.StringUtils.CompareStrings(SearchQuery, compare)) return true;
+
+        return false;
+    }
+
+    List<Data.Book> FilterBookList()
+    {
+        return BookList.Where(new Func<Data.Book, bool>(Search)).OrderBy(b => string.IsNullOrWhiteSpace(b.Title) ? b.BookMetadata.Title : b.Title).ToList();
+    }
+}
