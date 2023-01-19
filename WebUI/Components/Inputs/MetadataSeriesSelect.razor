@@ -94,7 +94,7 @@
             if (option == null)
             {
                 option = new BookSeries(((BookSeries)(result.Data)).Series, ((BookSeries)(result.Data)).Sequence);
-                SelectValue.Add(option);
+                SelectValue = SelectValue.Concat(new List<BookSeries>(){option}).ToList();
             }
             else
             {
