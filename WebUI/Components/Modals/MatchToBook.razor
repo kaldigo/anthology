@@ -12,7 +12,7 @@
                 string series = book.Series.Count == 0 ? string.Join(", ", book.BookMetadata.Series.Select(s => s.Name + (string.IsNullOrWhiteSpace(s.VolumeNumber) ? "" : " #" + s.VolumeNumber))) : string.Join(", ", book.Series.Select(s => s.Series.Name + (string.IsNullOrWhiteSpace(s.Sequence) ? "" : " #" + s.Sequence)));
                 string cover = book.BookCovers.Count == 0 ? book.BookMetadata.Covers.First() : book.BookCovers.First().GetUrl();
 
-                <BookCard T="Data.Book" Title="@title" Authors="@author" Series="@series" CoverURL="@cover" ButtonItem="book" ButtonText="Match" ButtonAction="@MatchBook"/>
+                <BookCard T="Data.Book" Text1="@title" Text2="@author" Text3="@series" Text4="@book.ISBN" CoverURL="@cover" ButtonItem="book" ButtonText="Match" ButtonAction="@MatchBook" />
             }
         </MudGrid>
     </DialogContent>
