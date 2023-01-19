@@ -4,7 +4,7 @@
     <DialogContent>
         <MudGrid>
             <MudItem xs="8">
-                <MudAutocomplete T="string" @ref="_autocomplete" SearchFunc="@Search" Adornment="Adornment.None"
+                <MudAutocomplete T="string" @ref="_autocomplete" Value="@CurrentSeries" SearchFunc="@Search" Adornment="Adornment.None"
                                  CoerceValue="true" SelectValueOnTab="true" ResetValueOnEmptyText="true" Variant="Variant.Outlined" Margin="Margin.Dense"
                                  IsOpenChanged="@AddSelectedOption" OnKeyUp="AddNewOption" />
             </MudItem>
@@ -25,6 +25,8 @@
 
     [Parameter]
     public Data.BookSeries BookSeries { get; set; } = new();
+
+    string CurrentSeries => BookSeries.Series != null ? BookSeries.Series.Name : null;
 
     public List<Data.Series> _existingSeries { get; set; }
     [Parameter]
@@ -56,14 +58,12 @@
     private async Task<IEnumerable<string>> Search(string value)
     {
         IEnumerable<Data.Series> filteredValues = ExistingSeries;
-        if (BookSeries.Series != null)
-        {
-            filteredValues = filteredValues.Where(e => e.Name == BookSeries.Series.Name || e.Aliases.Any(a => a.Name == BookSeries.Series.Name));
-        }
+
         if (!string.IsNullOrEmpty(value))
         {
-            filteredValues = filteredValues.Where(e => e.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase) || e.Aliases.Any(a => a.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)));
+            filteredValues = filteredValues.Where(e => Utils.StringUtils.CompareStrings(value, e.Name));
         }
+
         return filteredValues.Select(e => e.Name);
     }
 
