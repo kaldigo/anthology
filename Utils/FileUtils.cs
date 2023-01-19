@@ -21,7 +21,7 @@
 #if DEBUG
             var rootPath = Path.GetFullPath("AppData/Media/");
 #else
-            var rootPath = "/anthology/data/";
+            var rootPath = "/anthology/media/";
 #endif
 
             Directory.CreateDirectory(rootPath);
@@ -34,7 +34,7 @@
 #if DEBUG
             var rootPath = Path.GetFullPath("AppData/Downloads/");
 #else
-            var rootPath = "/anthology/downloads/";
+            var rootPath = "/data/";
 #endif
 
             Directory.CreateDirectory(rootPath);
