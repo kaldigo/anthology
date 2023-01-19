@@ -55,7 +55,7 @@ namespace Anthology.Plugins.DownloadSources
                         Login(b, settings);
                         
                         string downloadURL = GetBookDownloadPage(b, currentDownload.Identifier);
-                        string zipPath = Path.Combine(mediaPath, string.Concat(string.Join(", ", currentDownload.Author).Split(Path.GetInvalidFileNameChars())) + " - " + string.Concat(currentDownload.Title.Split(Path.GetInvalidFileNameChars())) + ".zip");
+                        string zipPath = Path.Combine(mediaPath, string.Concat(string.Join(", ", currentDownload.Author).Trim().Split(Path.GetInvalidFileNameChars())) + " - " + string.Concat(currentDownload.Title.Trim().Split(Path.GetInvalidFileNameChars())) + ".zip");
                         using (WebClient client = new WebClient())
                         {
                             client.DownloadFile(downloadURL, zipPath);
@@ -93,8 +93,8 @@ namespace Anthology.Plugins.DownloadSources
 
                     _extractTask = Task.Factory.StartNew(() =>
                     {
-                        string zipPath = Path.Combine(mediaPath, string.Concat(string.Join(", ", currentDownload.Author).Split(Path.GetInvalidFileNameChars())) + " - " + string.Concat(currentDownload.Title.Split(Path.GetInvalidFileNameChars())) + ".zip");
-                        var itemPath = Path.Combine(mediaPath, string.Concat(string.Join(", ", currentDownload.Author).Split(Path.GetInvalidPathChars())), string.Concat(currentDownload.Title.Split(Path.GetInvalidPathChars())));
+                        string zipPath = Path.Combine(mediaPath, string.Concat(string.Join(", ", currentDownload.Author).Trim().Split(Path.GetInvalidFileNameChars())) + " - " + string.Concat(currentDownload.Title.Trim().Split(Path.GetInvalidFileNameChars())) + ".zip");
+                        var itemPath = Path.Combine(mediaPath, string.Concat(string.Join(", ", currentDownload.Author).Trim().Split(Path.GetInvalidPathChars())), string.Concat(currentDownload.Title.Trim().Split(Path.GetInvalidPathChars())));
                         Directory.CreateDirectory(itemPath);
                         ZipFile.ExtractToDirectory(zipPath, itemPath);
                         File.Delete(zipPath);

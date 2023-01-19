@@ -128,15 +128,19 @@ namespace Anthology.Services
             string selectedValue = null;
 
             if (sources.ContainsKey("Override") && sources["Override"][fieldName] != null && !string.IsNullOrWhiteSpace((string)sources["Override"][fieldName])) selectedValue = (string)sources["Override"][fieldName];
-            if (sources.ContainsKey("Metadata") && sources["Metadata"][fieldName] != null && !string.IsNullOrWhiteSpace((string)sources["Metadata"][fieldName])) selectedValue = (string)sources["Metadata"][fieldName];
-
-            foreach (var source in ((List<SourcePriority>)fieldPriorities[fieldName]).OrderBy(s => s.Priority))
+            else if (sources.ContainsKey("Metadata") && sources["Metadata"][fieldName] != null && !string.IsNullOrWhiteSpace((string)sources["Metadata"][fieldName])) selectedValue = (string)sources["Metadata"][fieldName];
+            else
             {
-                var sourceIdentifier = pluginList.First(s => s.Type == Plugin.PluginType.Metadata && s.Name == source.Name).Identifier;
-                if (sources.ContainsKey(sourceIdentifier) && sources[sourceIdentifier] != null && !string.IsNullOrWhiteSpace((string)sources[sourceIdentifier][fieldName]))
+                foreach (var source in ((List<SourcePriority>)fieldPriorities[fieldName]).OrderBy(s => s.Priority))
                 {
-                    selectedValue = (string)sources[sourceIdentifier][fieldName];
-                    break;
+                    var sourceIdentifier = pluginList
+                        .First(s => s.Type == Plugin.PluginType.Metadata && s.Name == source.Name).Identifier;
+                    if (sources.ContainsKey(sourceIdentifier) && sources[sourceIdentifier] != null &&
+                        !string.IsNullOrWhiteSpace((string)sources[sourceIdentifier][fieldName]))
+                    {
+                        selectedValue = (string)sources[sourceIdentifier][fieldName];
+                        break;
+                    }
                 }
             }
 
@@ -148,15 +152,19 @@ namespace Anthology.Services
             DateTime? selectedValue = null;
 
             if (sources.ContainsKey("Override") && sources["Override"] != null && sources["Override"][fieldName] != null) selectedValue = (DateTime)sources["Override"][fieldName];
-            if (sources.ContainsKey("Metadata") && sources["Metadata"] != null && sources["Metadata"][fieldName] != null) selectedValue = (DateTime)sources["Metadata"][fieldName];
-
-            foreach (var source in ((List<SourcePriority>)fieldPriorities[fieldName]).OrderBy(s => s.Priority))
+            else if (sources.ContainsKey("Metadata") && sources["Metadata"] != null && sources["Metadata"][fieldName] != null) selectedValue = (DateTime)sources["Metadata"][fieldName];
+            else
             {
-                var sourceIdentifier = pluginList.First(s => s.Type == Plugin.PluginType.Metadata && s.Name == source.Name).Identifier;
-                if (sources.ContainsKey(sourceIdentifier) && sources[sourceIdentifier] != null && sources[sourceIdentifier][fieldName] != null)
+                foreach (var source in ((List<SourcePriority>)fieldPriorities[fieldName]).OrderBy(s => s.Priority))
                 {
-                    selectedValue = (DateTime)sources[sourceIdentifier][fieldName];
-                    break;
+                    var sourceIdentifier = pluginList
+                        .First(s => s.Type == Plugin.PluginType.Metadata && s.Name == source.Name).Identifier;
+                    if (sources.ContainsKey(sourceIdentifier) && sources[sourceIdentifier] != null &&
+                        sources[sourceIdentifier][fieldName] != null)
+                    {
+                        selectedValue = (DateTime)sources[sourceIdentifier][fieldName];
+                        break;
+                    }
                 }
             }
 
@@ -168,15 +176,19 @@ namespace Anthology.Services
             bool selectedValue = false;
 
             if (sources.ContainsKey("Override") && sources["Override"] != null && (bool)sources["Override"][fieldName]) selectedValue = (bool)sources["Override"][fieldName];
-            if (sources.ContainsKey("Metadata") && sources["Metadata"] != null && (bool)sources["Metadata"][fieldName]) selectedValue = (bool)sources["Metadata"][fieldName];
-
-            foreach (var source in ((List<SourcePriority>)fieldPriorities[fieldName]).OrderBy(s => s.Priority))
+            else if (sources.ContainsKey("Metadata") && sources["Metadata"] != null && (bool)sources["Metadata"][fieldName]) selectedValue = (bool)sources["Metadata"][fieldName];
+            else
             {
-                var sourceIdentifier = pluginList.First(s => s.Type == Plugin.PluginType.Metadata && s.Name == source.Name).Identifier;
-                if (sources.ContainsKey(sourceIdentifier) && sources[sourceIdentifier] != null && (bool)sources[sourceIdentifier][fieldName])
+                foreach (var source in ((List<SourcePriority>)fieldPriorities[fieldName]).OrderBy(s => s.Priority))
                 {
-                    selectedValue = (bool)sources[sourceIdentifier][fieldName];
-                    break;
+                    var sourceIdentifier = pluginList
+                        .First(s => s.Type == Plugin.PluginType.Metadata && s.Name == source.Name).Identifier;
+                    if (sources.ContainsKey(sourceIdentifier) && sources[sourceIdentifier] != null &&
+                        (bool)sources[sourceIdentifier][fieldName])
+                    {
+                        selectedValue = (bool)sources[sourceIdentifier][fieldName];
+                        break;
+                    }
                 }
             }
 
@@ -192,19 +204,24 @@ namespace Anthology.Services
                 selectedValue.AddRange((List<T>)sources["Override"][fieldName]);
                 if (!mergeData) return selectedValue;
             }
-            if (sources.ContainsKey("Metadata") && sources["Metadata"] != null && (List<T>)sources["Metadata"][fieldName] != null && ((List<T>)sources["Metadata"][fieldName]).Count != 0)
+            else if (sources.ContainsKey("Metadata") && sources["Metadata"] != null && (List<T>)sources["Metadata"][fieldName] != null && ((List<T>)sources["Metadata"][fieldName]).Count != 0)
             {
                 selectedValue.AddRange((List<T>)sources["Metadata"][fieldName]);
                 if (!mergeData) return selectedValue;
             }
-
-            foreach (var source in ((List<SourcePriority>)fieldPriorities[fieldName]).OrderBy(s => s.Priority))
+            else
             {
-                var sourceIdentifier = pluginList.First(s => s.Type == Plugin.PluginType.Metadata && s.Name == source.Name).Identifier;
-                if (sources.ContainsKey(sourceIdentifier) && sources[sourceIdentifier] != null && (List<T>)sources[sourceIdentifier][fieldName] != null && ((List<T>)sources[sourceIdentifier][fieldName]).Count != 0)
+                foreach (var source in ((List<SourcePriority>)fieldPriorities[fieldName]).OrderBy(s => s.Priority))
                 {
-                    selectedValue.AddRange((List<T>)sources[sourceIdentifier][fieldName]);
-                    if (!mergeData) break;
+                    var sourceIdentifier = pluginList
+                        .First(s => s.Type == Plugin.PluginType.Metadata && s.Name == source.Name).Identifier;
+                    if (sources.ContainsKey(sourceIdentifier) && sources[sourceIdentifier] != null &&
+                        (List<T>)sources[sourceIdentifier][fieldName] != null &&
+                        ((List<T>)sources[sourceIdentifier][fieldName]).Count != 0)
+                    {
+                        selectedValue.AddRange((List<T>)sources[sourceIdentifier][fieldName]);
+                        if (!mergeData) break;
+                    }
                 }
             }
 
