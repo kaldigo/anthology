@@ -18,4 +18,4 @@ RUN dotnet publish "WebUI.csproj" -c Release -o /app/publish /p:UseAppHost=false
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "WebUI.dll"]
+ENTRYPOINT ["dotnet", "Anthology.WebUI.dll"]

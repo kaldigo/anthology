@@ -24,7 +24,7 @@ else
     <MudGrid>
         @foreach (var downloadItem in DownloadList.Select(d => new DownloadItem(d, BookList)))
         {
-            <BookCard T="Plugins.Models.Download" Title="@downloadItem.Title" Authors="@downloadItem.Author" Series="@downloadItem.Series" CoverURL="@downloadItem.Cover" ShowStatus="@downloadItem.IsImported" Status="@downloadItem.IsInLibrary" ButtonItem="@downloadItem.Download" ButtonText="Download" ButtonAction="@DownloadBook" SecondButtonText="@downloadItem.SecondButtonText" SecondButtonAction="@ShowMatchToBookDialog" />
+            <BookCard T="Plugins.Models.Download" Text1="@downloadItem.Title" Text2="@downloadItem.Author" Text3="@downloadItem.Series" CoverURL="@downloadItem.Cover" ShowStatus="@downloadItem.IsImported" Status="@downloadItem.IsInLibrary" ButtonItem="@downloadItem.Download" ButtonText="Download" ButtonAction="@DownloadBook" SecondButtonText="@downloadItem.SecondButtonText" SecondButtonAction="@ShowMatchToBookDialog" />
         }
     </MudGrid>
 }
