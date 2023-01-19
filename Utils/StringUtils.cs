@@ -10,6 +10,9 @@ namespace Anthology.Utils
     {
         public static bool CompareStrings(string query, string compare)
         {
+            if (string.IsNullOrWhiteSpace(query)) return true;
+            if (string.IsNullOrWhiteSpace(compare)) return false;
+
             query = RemoveSpecialCharacters(query.Trim());
             compare = RemoveSpecialCharacters(compare.Trim());
 
@@ -18,27 +21,13 @@ namespace Anthology.Utils
             var queryWordList = query.Split(' ').Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
             foreach (var queryWord in queryWordList)
             {
-                var wordMatch = false;
-                var compareWords = compare.Split(' ').Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
-                foreach (var compareWord in compareWords)
+                if (compare.Split(' ').Where(c => !string.IsNullOrWhiteSpace(c)).Any(c => c.ToLower().Contains(queryWord.ToLower())))
                 {
-                    var a = queryWord.ToLower().Contains(compareWord.ToLower());
-                    var b = compareWord.ToLower().Contains(queryWord.ToLower());
-
-                    if (a || b)
-                    {
-                        wordMatch = a || b;
-                    }
+                    foundWords.Add(queryWord);
                 }
-                if(wordMatch) foundWords.Add(queryWord);
             }
             
             bool match = queryWordList.Count == foundWords.Count;
-
-            if (match)
-            {
-                bool test = true;
-            }
 
             return match;
         }

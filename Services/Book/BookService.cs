@@ -27,15 +27,26 @@ namespace Anthology.Services
         {
             if (searchQuery["title"].Length > 4 && searchQuery["title"].Substring(0, 4) == "ANTH") searchQuery["isbn"] = searchQuery["title"];
 
-            if (searchQuery["isbn"] != null && searchQuery["isbn"].Substring(0, 4) == "ANTH")
+            if (searchQuery.ContainsKey("isbn") && searchQuery["isbn"].Substring(0, 4) == "ANTH")
             {
-                var book = GetBookByISBN(searchQuery["isbn"]);
+                var book = _context.Books.SingleOrDefault(x => x.ISBN == searchQuery["isbn"]); ;
                 if (book != null) return Task.FromResult(new List<ApiMetadata>(){ _metadataService.GetApiMetadata(book).Result });
             }
 
-            var books = GetBooks(searchQuery["title"]).Select(b => (_metadataService.GetApiMetadata(b).Result)).ToList();
+            var books = _context.Books.ToList();
+
+            books = books.Where(b => Utils.StringUtils.CompareStrings(searchQuery["title"],
+                string.IsNullOrWhiteSpace(b.Title) ? b.BookMetadata.Title : b.Title)).ToList();
+            if (searchQuery.ContainsKey("author"))
+                books = books.Where(b =>
+                    Utils.StringUtils.CompareStrings(searchQuery["author"],
+                        b.Authors.Count == 0
+                            ? string.Join(", ", b.BookMetadata.Authors)
+                            : string.Join(", ", b.Authors.Select(a => a.Name)))).ToList();
+
+            var searchResults = books.Select(b => _metadataService.GetApiMetadata(b).Result).ToList();
             _context.SaveChanges();
-            return Task.FromResult(books);
+            return Task.FromResult(searchResults);
         }
 
         public List<Book> GetBooks()
@@ -62,7 +73,7 @@ namespace Anthology.Services
 
         public List<Book> GetBooks(string title)
         {
-            var books = _context.Books.Where(b => b.Title.Contains(title) || title.Contains(b.Title)).ToList();
+            var books = _context.Books.Where(b => Utils.StringUtils.CompareStrings(title, b.Title)).ToList();
             return books;
         }
 

@@ -1,6 +1,7 @@
 ﻿@page "/Settings"
 @using Anthology.Data
 @using Anthology.WebUI.Components.Inputs
+@using Anthology.WebUI.Components.Elements
 
 <PageTitle>Settings</PageTitle>
 
@@ -25,11 +26,11 @@ else
     <PriorityDropzone FieldName="Description" Sources="@settings.FieldPriorities.Description" SaveSettings="@Save" />
     <PriorityDropzone FieldName="Publisher" Sources="@settings.FieldPriorities.Publisher" SaveSettings="@Save" />
     <PriorityDropzone FieldName="PublishDate" Sources="@settings.FieldPriorities.PublishDate" SaveSettings="@Save" />
-    <PriorityDropzone FieldName="Genres" Sources="@settings.FieldPriorities.Genres" ShowMerge="true" Merge="@settings.FieldPriorities.MergeGenres" SaveSettings="@Save" />
-    <PriorityDropzone FieldName="Tags" Sources="@settings.FieldPriorities.Tags" ShowMerge="true" Merge="@settings.FieldPriorities.MergeTags" SaveSettings="@Save" />
+    <PriorityDropzone FieldName="Genres" Sources="@settings.FieldPriorities.Genres" ShowMerge="true" @bind-Merge="@settings.FieldPriorities.MergeGenres" SaveSettings="@Save" />
+    <PriorityDropzone FieldName="Tags" Sources="@settings.FieldPriorities.Tags" ShowMerge="true" @bind-Merge="@settings.FieldPriorities.MergeTags" SaveSettings="@Save" />
     <PriorityDropzone FieldName="Language" Sources="@settings.FieldPriorities.Language" SaveSettings="@Save" />
     <PriorityDropzone FieldName="IsExplicit" Sources="@settings.FieldPriorities.IsExplicit" SaveSettings="@Save" />
-    <PriorityDropzone FieldName="Covers" @bind-Sources="settings.FieldPriorities.Covers" ShowMerge="true" @bind-Merge="@settings.FieldPriorities.MergeCovers" SaveSettings="@Save" />
+    <PriorityDropzone FieldName="Covers" Sources="@settings.FieldPriorities.Covers" ShowMerge="true" @bind-Merge="@settings.FieldPriorities.MergeCovers" SaveSettings="@Save" />
 
     <MudDivider DividerType="DividerType.Middle" Class="my-2" />
 

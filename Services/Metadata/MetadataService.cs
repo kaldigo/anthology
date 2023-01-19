@@ -103,34 +103,36 @@ namespace Anthology.Services
 
         private Metadata MergeMetadata(Dictionary<string, Metadata> sources)
         {
+            var fieldPriorities = _settingsService.GetSettings().FieldPriorities;
+            var pluginList = _pluginsService.GetPluginList();
             return new Metadata()
             {
-                Title = SelectMetadataString(sources, "Title"),
-                Subtitle = SelectMetadataString(sources, "Subtitle"),
-                Authors = SelectMetadataList<string>(sources, "Authors"),
-                Narrators = SelectMetadataList<string>(sources, "Narrators"),
-                Series = SelectMetadataList<MetadataSeries>(sources, "Series"),
-                Description = SelectMetadataString(sources, "Description"),
-                Publisher = SelectMetadataString(sources, "Publisher"),
-                PublishDate = SelectMetadataDateTime(sources, "PublishDate"),
-                Genres = SelectMetadataList<string>(sources, "Genres", true),
-                Tags = SelectMetadataList<string>(sources, "Tags", true),
-                Language = SelectMetadataString(sources, "Language"),
-                IsExplicit = SelectMetadataBool(sources, "IsExplicit"),
-                Covers = SelectMetadataList<string>(sources, "Covers")
+                Title = SelectMetadataString(sources, fieldPriorities, pluginList, "Title"),
+                Subtitle = SelectMetadataString(sources, fieldPriorities, pluginList, "Subtitle"),
+                Authors = SelectMetadataList<string>(sources, fieldPriorities, pluginList, "Authors"),
+                Narrators = SelectMetadataList<string>(sources, fieldPriorities, pluginList, "Narrators"),
+                Series = SelectMetadataList<MetadataSeries>(sources, fieldPriorities, pluginList, "Series"),
+                Description = SelectMetadataString(sources, fieldPriorities, pluginList, "Description"),
+                Publisher = SelectMetadataString(sources, fieldPriorities, pluginList, "Publisher"),
+                PublishDate = SelectMetadataDateTime(sources, fieldPriorities, pluginList, "PublishDate"),
+                Genres = SelectMetadataList<string>(sources, fieldPriorities, pluginList, "Genres", fieldPriorities.MergeGenres),
+                Tags = SelectMetadataList<string>(sources, fieldPriorities, pluginList, "Tags", fieldPriorities.MergeTags),
+                Language = SelectMetadataString(sources, fieldPriorities, pluginList, "Language"),
+                IsExplicit = SelectMetadataBool(sources, fieldPriorities, pluginList, "IsExplicit"),
+                Covers = SelectMetadataList<string>(sources, fieldPriorities, pluginList, "Covers", fieldPriorities.MergeCovers)
             };
         }
 
-        private string SelectMetadataString(Dictionary<string, Metadata> sources, string fieldName)
+        private string SelectMetadataString(Dictionary<string, Metadata> sources, FieldPriorities fieldPriorities, List<Plugin> pluginList, string fieldName)
         {
             string selectedValue = null;
 
             if (sources.ContainsKey("Override") && sources["Override"][fieldName] != null && !string.IsNullOrWhiteSpace((string)sources["Override"][fieldName])) selectedValue = (string)sources["Override"][fieldName];
             if (sources.ContainsKey("Metadata") && sources["Metadata"][fieldName] != null && !string.IsNullOrWhiteSpace((string)sources["Metadata"][fieldName])) selectedValue = (string)sources["Metadata"][fieldName];
 
-            foreach (var source in ((List<SourcePriority>)_settingsService.GetSettings().FieldPriorities[fieldName]).OrderBy(s => s.Priority))
+            foreach (var source in ((List<SourcePriority>)fieldPriorities[fieldName]).OrderBy(s => s.Priority))
             {
-                var sourceIdentifier = _pluginsService.GetPluginList().First(s => s.Type == Plugin.PluginType.Metadata && s.Name == source.Name).Identifier;
+                var sourceIdentifier = pluginList.First(s => s.Type == Plugin.PluginType.Metadata && s.Name == source.Name).Identifier;
                 if (sources.ContainsKey(sourceIdentifier) && sources[sourceIdentifier] != null && !string.IsNullOrWhiteSpace((string)sources[sourceIdentifier][fieldName]))
                 {
                     selectedValue = (string)sources[sourceIdentifier][fieldName];
@@ -141,16 +143,16 @@ namespace Anthology.Services
             return selectedValue;
         }
 
-        private DateTime? SelectMetadataDateTime(Dictionary<string, Metadata> sources, string fieldName)
+        private DateTime? SelectMetadataDateTime(Dictionary<string, Metadata> sources, FieldPriorities fieldPriorities, List<Plugin> pluginList, string fieldName)
         {
             DateTime? selectedValue = null;
 
             if (sources.ContainsKey("Override") && sources["Override"] != null && sources["Override"][fieldName] != null) selectedValue = (DateTime)sources["Override"][fieldName];
             if (sources.ContainsKey("Metadata") && sources["Metadata"] != null && sources["Metadata"][fieldName] != null) selectedValue = (DateTime)sources["Metadata"][fieldName];
 
-            foreach (var source in ((List<SourcePriority>)_settingsService.GetSettings().FieldPriorities[fieldName]).OrderBy(s => s.Priority))
+            foreach (var source in ((List<SourcePriority>)fieldPriorities[fieldName]).OrderBy(s => s.Priority))
             {
-                var sourceIdentifier = _pluginsService.GetPluginList().First(s => s.Type == Plugin.PluginType.Metadata && s.Name == source.Name).Identifier;
+                var sourceIdentifier = pluginList.First(s => s.Type == Plugin.PluginType.Metadata && s.Name == source.Name).Identifier;
                 if (sources.ContainsKey(sourceIdentifier) && sources[sourceIdentifier] != null && sources[sourceIdentifier][fieldName] != null)
                 {
                     selectedValue = (DateTime)sources[sourceIdentifier][fieldName];
@@ -161,16 +163,16 @@ namespace Anthology.Services
             return selectedValue;
         }
 
-        private bool SelectMetadataBool(Dictionary<string, Metadata> sources, string fieldName)
+        private bool SelectMetadataBool(Dictionary<string, Metadata> sources, FieldPriorities fieldPriorities, List<Plugin> pluginList, string fieldName)
         {
             bool selectedValue = false;
 
             if (sources.ContainsKey("Override") && sources["Override"] != null && (bool)sources["Override"][fieldName]) selectedValue = (bool)sources["Override"][fieldName];
             if (sources.ContainsKey("Metadata") && sources["Metadata"] != null && (bool)sources["Metadata"][fieldName]) selectedValue = (bool)sources["Metadata"][fieldName];
 
-            foreach (var source in ((List<SourcePriority>)_settingsService.GetSettings().FieldPriorities[fieldName]).OrderBy(s => s.Priority))
+            foreach (var source in ((List<SourcePriority>)fieldPriorities[fieldName]).OrderBy(s => s.Priority))
             {
-                var sourceIdentifier = _pluginsService.GetPluginList().First(s => s.Type == Plugin.PluginType.Metadata && s.Name == source.Name).Identifier;
+                var sourceIdentifier = pluginList.First(s => s.Type == Plugin.PluginType.Metadata && s.Name == source.Name).Identifier;
                 if (sources.ContainsKey(sourceIdentifier) && sources[sourceIdentifier] != null && (bool)sources[sourceIdentifier][fieldName])
                 {
                     selectedValue = (bool)sources[sourceIdentifier][fieldName];
@@ -181,7 +183,7 @@ namespace Anthology.Services
             return selectedValue;
         }
 
-        private List<T> SelectMetadataList<T>(Dictionary<string, Metadata> sources, string fieldName, bool mergeData = false)
+        private List<T> SelectMetadataList<T>(Dictionary<string, Metadata> sources, FieldPriorities fieldPriorities, List<Plugin> pluginList, string fieldName, bool mergeData = false)
         {
             List<T> selectedValue = new List<T>();
 
@@ -196,9 +198,9 @@ namespace Anthology.Services
                 if (!mergeData) return selectedValue;
             }
 
-            foreach (var source in ((List<SourcePriority>)_settingsService.GetSettings().FieldPriorities[fieldName]).OrderBy(s => s.Priority))
+            foreach (var source in ((List<SourcePriority>)fieldPriorities[fieldName]).OrderBy(s => s.Priority))
             {
-                var sourceIdentifier = _pluginsService.GetPluginList().First(s => s.Type == Plugin.PluginType.Metadata && s.Name == source.Name).Identifier;
+                var sourceIdentifier = pluginList.First(s => s.Type == Plugin.PluginType.Metadata && s.Name == source.Name).Identifier;
                 if (sources.ContainsKey(sourceIdentifier) && sources[sourceIdentifier] != null && (List<T>)sources[sourceIdentifier][fieldName] != null && ((List<T>)sources[sourceIdentifier][fieldName]).Count != 0)
                 {
                     selectedValue.AddRange((List<T>)sources[sourceIdentifier][fieldName]);
