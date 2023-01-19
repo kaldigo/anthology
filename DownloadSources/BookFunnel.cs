@@ -94,7 +94,7 @@ namespace Anthology.Plugins.DownloadSources
                     _extractTask = Task.Factory.StartNew(() =>
                     {
                         string zipPath = Path.Combine(mediaPath, string.Concat(string.Join(", ", currentDownload.Author).Split(Path.GetInvalidFileNameChars())) + " - " + string.Concat(currentDownload.Title.Split(Path.GetInvalidFileNameChars())) + ".zip");
-                        var itemPath = Path.Combine(mediaPath, string.Concat(string.Join(", ", currentDownload.Author).Split(Path.GetInvalidFileNameChars())), string.Concat(currentDownload.Title.Split(Path.GetInvalidFileNameChars())));
+                        var itemPath = Path.Combine(mediaPath, string.Concat(string.Join(", ", currentDownload.Author).Split(Path.GetInvalidPathChars())), string.Concat(currentDownload.Title.Split(Path.GetInvalidPathChars())));
                         Directory.CreateDirectory(itemPath);
                         ZipFile.ExtractToDirectory(zipPath, itemPath);
                         File.Delete(zipPath);
