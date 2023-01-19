@@ -1,11 +1,19 @@
 ﻿@using Anthology.WebUI.Components.Elements;
+@using BlazorPro.BlazorSize
 
-<MudGrid Class="mt-3">
-    @foreach (var book in Books)
-    {
-        <GridBookItem Book="book" EditBook="EditBookDialog"  />
-    }
-</MudGrid>
+@inject IJSRuntime JsRuntime
+@inject IResizeListener listener
+
+<div class="mt-3">
+    <Virtualize Items="@RowList" Context="row" OverscanCount="5">
+        <MudGrid Class="ma-0 pa-0">
+            @foreach (var book in row)
+            {
+                <GridBookItem Book="@book" EditBook="EditBookDialog" />
+            }
+        </MudGrid>
+    </Virtualize>
+</div>
 
 @code {
     [Parameter]
@@ -14,11 +22,49 @@
     [Parameter]
     public EventCallback<Data.Book> EditBookDialog { get; set; }
 
+    BrowserWindowSize browser = new BrowserWindowSize();
+    int Width { get; set; }
+    int BooksPerRow => (int)System.Math.Floor(((double)Width - (double)282) / (double)224);
+
+    List<IEnumerable<Data.Book>> RowList => GetRows();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        Width = await JsRuntime.InvokeAsync<int>("getWindowWidth");
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+
+        if (firstRender)
+        {
+            listener.OnResized += WindowResized;
+        }
+    }
+
     protected override async Task OnParametersSetAsync()
     {
         base.OnParametersSetAsync();
         
         StateHasChanged();
+    }
+
+    async void WindowResized(object _, BrowserWindowSize window)
+    {
+        Width = window.Width;
+        StateHasChanged();
+    }
+
+    List<IEnumerable<Data.Book>> GetRows()
+    {
+        var rows = new List<IEnumerable<Data.Book>> ();
+        for (int i = 0; i < ((int)Math.Ceiling((double)Books.Count / (double)BooksPerRow)); i++)
+        {
+            rows.Add(Books.Skip(i * BooksPerRow).Take(BooksPerRow));
+        }
+        return rows;
     }
 
 }

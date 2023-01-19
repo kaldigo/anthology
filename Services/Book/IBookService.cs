@@ -4,17 +4,20 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static Anthology.Services.MetadataService;
 
 namespace Anthology.Services
 {
     public interface IBookService
     {
-        Task<List<dynamic>> Search(Dictionary<string, string> searchQuery);
+        Task<List<ApiMetadata>> Search(Dictionary<string, string> searchQuery);
         List<Book> GetBooks();
         Task<List<Book>> GetBooksAsync();
+        List<Book> GetBooksWithStatus();
+        Task<List<Book>> GetBooksWithStatusAsync();
         List<Book> GetBooks(string title);
         Book GetBookByISBN(string isbn);
-        void SaveBook(Book book, bool updateMetadata = false);
+        void SaveBook(Book book, bool updateMetadata = false, bool batchImport = false);
         void DeleteBook(string isbn);
     }
 }

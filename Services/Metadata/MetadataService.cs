@@ -27,13 +27,13 @@ namespace Anthology.Services
             _seriesService = seriesService;
         }
 
-        public Task<dynamic> GetApiMetadata(Book book)
+        public Task<ApiMetadata> GetApiMetadata(Book book)
         {
-            dynamic mergedMetadata = GetMetadata(book, false);
+            ApiMetadata mergedMetadata = new ApiMetadata(GetMetadata(book, false).Result);
             mergedMetadata.ISBN = book.ISBN;
             foreach (var identifier in book.Identifiers.Where(i => i.Exists && !string.IsNullOrWhiteSpace(i.Value)))
             {
-                mergedMetadata.Add(identifier.Key, identifier.Value);
+                mergedMetadata.Identifiers.Add(identifier.Key.ToLower(), identifier.Value);
             }
 
             return Task.FromResult(mergedMetadata);
@@ -230,6 +230,30 @@ namespace Anthology.Services
                 IsExplicit = book.IsExplicit.HasValue ? book.IsExplicit.Value : false,
                 Covers = covers
             };
+        }
+
+        public class ApiMetadata : Metadata
+        {
+            public string? ISBN { get; set; }
+            public Dictionary<string,string> Identifiers { get; set; } = new Dictionary<string, string>();
+
+            public ApiMetadata(Metadata metadata)
+            {
+                Title = metadata.Title;
+                Subtitle = metadata.Subtitle;
+                Authors = metadata.Authors;
+                Narrators = metadata.Narrators;
+                Series = metadata.Series;
+                Description = metadata.Description;
+                Publisher = metadata.Publisher;
+                PublishDate = metadata.PublishDate;
+                Genres = metadata.Genres;
+                Tags = metadata.Tags;
+                Language = metadata.Language;
+                IsExplicit = metadata.IsExplicit;
+                Covers = metadata.Covers;
+            }    
+
         }
     }
 }

@@ -33,7 +33,7 @@
                 <MudGrid Class="flex-nowrap overflow-y-auto">
                     @foreach (var result in Results)
                     {
-                        <BookCard T="MetadataSearchResult" Title="@result.Metadata.Title" Authors="@string.Join(", ", result.Metadata.Authors)" Series="@string.Join(", ", result.Metadata.Series.Select(s => s.Name + (string.IsNullOrWhiteSpace(s.VolumeNumber) ? "" : " #" + s.VolumeNumber)))" CoverURL="@result.Metadata.Covers.FirstOrDefault()" ButtonText="Select" ButtonItem="@result" ButtonAction="@MatchResult"/>
+                        <BookCard T="MetadataSearchResult" Text1="@result.Metadata.Title" Text2="@string.Join(", ", result.Metadata.Authors)" Text3="@string.Join(", ", result.Metadata.Series.Select(s => s.Name + (string.IsNullOrWhiteSpace(s.VolumeNumber) ? "" : " #" + s.VolumeNumber)))" Text4="@result.Identifier" CoverURL="@result.Metadata.Covers.FirstOrDefault()" ButtonText="Select" ButtonItem="@result" ButtonAction="@MatchResult" />
                     }
                 </MudGrid>
             }

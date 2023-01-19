@@ -17,24 +17,14 @@
 </MudPaper>
 @if (DownloadList == null || BookList == null)
 {
-        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    <LoadingIndicator />
 }
 else
 {
     <MudGrid>
-        @foreach (var download in DownloadList)
+        @foreach (var downloadItem in DownloadList.Select(d => new DownloadItem(d, BookList)))
         {
-            var book = getLinkedBook(download);
-            bool isImported = book != null;
-            bool isInLibrary = book?.ExistsInLibrary ?? false;
-
-            string title = book != null ? (string.IsNullOrWhiteSpace(book.Title) ? book.BookMetadata.Title : book.Title) : download.Title;
-            string author = book != null ? (book.Authors.Count == 0 ? string.Join(", ", book.BookMetadata.Authors) : string.Join(", ", book.Authors)) : string.Join(", ", download.Author);
-            string series = book != null ? (book.Series.Count == 0 ? string.Join(", ", book.BookMetadata.Series.Select(s => s.Name + (string.IsNullOrWhiteSpace(s.VolumeNumber) ? "" : " #" + s.VolumeNumber))) : string.Join(", ", book.Series.Select(s => s.Series.Name + (string.IsNullOrWhiteSpace(s.Sequence) ? "" : " #" + s.Sequence)))) : null;
-            string cover = book != null ? (book.BookCovers.Count == 0 ? book.BookMetadata.Covers.First() : book.BookCovers.First().GetUrl()) : download.ImageURL;
-
-            string secondButtonText = isImported ? null : "Match";
-            <BookCard T="Plugins.Models.Download" Title="@title" Authors="@author" Series="@series" CoverURL="@cover" ShowStatus="@isImported" Status="@isInLibrary" ButtonItem="@download" ButtonText="Download" ButtonAction="@DownloadBook" SecondButtonText="@secondButtonText" />
+            <BookCard T="Plugins.Models.Download" Title="@downloadItem.Title" Authors="@downloadItem.Author" Series="@downloadItem.Series" CoverURL="@downloadItem.Cover" ShowStatus="@downloadItem.IsImported" Status="@downloadItem.IsInLibrary" ButtonItem="@downloadItem.Download" ButtonText="Download" ButtonAction="@DownloadBook" SecondButtonText="@downloadItem.SecondButtonText" SecondButtonAction="@ShowMatchToBookDialog" />
         }
     </MudGrid>
 }
@@ -58,18 +48,18 @@ else
     async Task LoadData()
     {
         DownloadList = await _downloadService.GetDownloadList();
-        BookList = await _bookService.GetBooksAsync();
+        BookList = await _bookService.GetBooksWithStatusAsync();
         StateHasChanged();
     }
 
-    Book? getLinkedBook(Plugins.Models.Download download)
+    static Book? getLinkedBook(Plugins.Models.Download download, List<Data.Book> bookList)
     {
-        return BookList.FirstOrDefault(b => b.Identifiers.Any(i => i.Key == download.Key && i.Value == download.Identifier));
+        return bookList.FirstOrDefault(b => b.Identifiers.Any(i => i.Key == download.Key && i.Value == download.Identifier));
     }
 
     void DownloadBook(Plugins.Models.Download download)
     {
-        if (getLinkedBook(download) == null)
+        if (getLinkedBook(download, BookList) == null)
         {
             ShowAddEditBookDialog(download);
         }
@@ -112,5 +102,52 @@ else
         var result = await dialog.Result;
 
         if (result != null && (string)result.Data == "Added") Task.Run(() => StartBookDownload(download));
+    }
+
+    async Task ShowMatchToBookDialog(Plugins.Models.Download download)
+    {
+        var searchQuery = download.Title + (download.Author.Count() != 0 ? " " + string.Join(" ", download.Author) : null);
+        var parameters = new DialogParameters { ["BookList"] = BookList, ["SearchQuery"] = searchQuery };
+        var options = new DialogOptions() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true, NoHeader = true };
+
+        var dialog = await _dialog.ShowAsync<MatchToBook>("Match Book", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Cancelled && result.Data != null)
+        {
+            var book = (Data.Book)result.Data;
+            if (book.Identifiers.Any(i => i.Key == download.Key)) book.Identifiers.First(i => i.Key == download.Key).Value = download.Identifier;
+            else book.Identifiers.Add(new BookIdentifier(download.Key, download.Identifier));
+            _bookService.SaveBook(book);
+
+            StateHasChanged();
+        }
+    }
+
+    class DownloadItem
+    {
+        public Book? Book { get; set; }
+        public Plugins.Models.Download Download { get; set; }
+        public bool IsImported { get; set; }
+        public bool IsInLibrary { get; set; }
+        public string Title { get; set; }
+        public string Author { get; set; }
+        public string Series { get; set; }
+        public string Cover { get; set; }
+        public string SecondButtonText => IsImported ? null : "Match";
+
+        public DownloadItem(Plugins.Models.Download download, List<Data.Book> bookList)
+        {
+            Book = getLinkedBook(download, bookList);
+            Download = download;
+            IsImported = Book != null;
+            IsInLibrary = Book?.ExistsInLibrary ?? false;
+
+            Title = Book != null ? (string.IsNullOrWhiteSpace(Book.Title) ? Book.BookMetadata.Title : Book.Title) : download.Title;
+            Author = Book != null ? (Book.Authors.Count == 0 ? string.Join(", ", Book.BookMetadata.Authors) : string.Join(", ", Book.Authors)) : string.Join(", ", download.Author);
+            Series = Book != null ? (Book.Series.Count == 0 ? string.Join(", ", Book.BookMetadata.Series.Select(s => s.Name + (string.IsNullOrWhiteSpace(s.VolumeNumber) ? "" : " #" + s.VolumeNumber))) : string.Join(", ", Book.Series.Select(s => s.Series.Name + (string.IsNullOrWhiteSpace(s.Sequence) ? "" : " #" + s.Sequence)))) : null;
+            Cover = Book != null ? (Book.BookCovers.Count == 0 ? Book.BookMetadata.Covers.First() : Book.BookCovers.First().GetUrl()) : download.ImageURL;
+        }
+
     }
 }

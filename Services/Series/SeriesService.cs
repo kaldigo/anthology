@@ -49,6 +49,7 @@ namespace Anthology.Services
         public Series? GetSeries(string name)
         {
             var series = _context.Series.FirstOrDefault(c => c.Name == name);
+            if (series == null) series = new Series(name);
             series.BookClassifications = _classificationService.CleanClassification(series.BookClassificationsRaw);
             return series;
         }

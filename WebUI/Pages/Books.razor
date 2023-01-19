@@ -1,8 +1,11 @@
 ﻿@page "/Books"
 @using Anthology.WebUI.Components.LibraryViews
 @using Anthology.WebUI.Components.Modals
+@using Anthology.WebUI.Components.Elements
+@using Anthology.Services
 
 @inject Anthology.Services.IBookService _bookService
+@inject Anthology.Services.IPluginsService _pluginsService
 @inject MudBlazor.ISnackbar _snackBar
 @inject MudBlazor.IDialogService _dialog
 
@@ -10,27 +13,57 @@
 
 <MudPaper Elevation="25">
     <MudToolBar>
-        <MudIconButton Icon="@Icons.Material.Outlined.Add" OnClick="@(() => ShowAddEditBookDialog(new Data.Book(), true))" />
+        <MudTextField @bind-Value="SearchQuery" Class="mb-5" Label="Search" Variant="Variant.Text" TextChanged="@FilterBookList" Immediate="true"></MudTextField>
         <MudSpacer />
-        <MudIconButton Icon="@Icons.Material.Outlined.MoreVert" Color="Color.Inherit" />
+        @foreach (var plugin in MetadataPlugins)
+        {
+            <MudButton Class="mr-2 ml-2" Variant="Variant.Filled" Size="Size.Small" Color="@(MatchedPluginsToHide.Any(p => p.Identifier == plugin.Identifier) ? Color.Error : (UnmatchedPluginsToHide.Any(p => p.Identifier == plugin.Identifier) ? Color.Success : Color.Default))" OnClick="@(() => TogglePluginFilter(plugin))">@plugin.Name</MudButton>
+        }
+        <MudSpacer />
+        <MudIconButton Icon="@Icons.Material.Outlined.Add" OnClick="@(() => ShowAddEditBookDialog(new Data.Book(), true))" />
+        <MudMenu Icon="@Icons.Material.Filled.MoreVert">
+            @foreach (var view in Enum.GetValues(typeof(BookViewEnum)).Cast<BookViewEnum>())
+            {
+                <MudMenuItem OnClick="@(() => ChangeView(view))">@view.ToString()</MudMenuItem>
+            }
+        </MudMenu>
     </MudToolBar>
 </MudPaper>
 @if (BookList == null)
 {
-        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        <LoadingIndicator />
 }
 else if (View == BookViewEnum.Grid)
 {
     <Grid Books="@FilteredBookList" EditBookDialog="@ShowAddEditBookDialog" />
 }
+else if (View == BookViewEnum.List)
+{
+    <List Books="@FilteredBookList" EditBookDialog="@ShowAddEditBookDialog" />
+}
 
 @code
 {
     private BookViewEnum View { get; set; } = BookViewEnum.Grid;
-
+    
     private List<Data.Book> BookList { get; set; }
 
-    private List<Data.Book> FilteredBookList => FilterBookList();
+    private List<Data.Book> FilteredBookList { get; set; }
+
+    private string SearchQuery { get; set; }
+
+    List<Plugin> MetadataPlugins { get; set; }
+
+    List<Plugin> MatchedPluginsToHide { get; set; } = new();
+
+    List<Plugin> UnmatchedPluginsToHide { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        MetadataPlugins = _pluginsService.GetPluginList().Where(p => p.Type == Plugin.PluginType.Metadata).ToList();
+    }
+
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -45,14 +78,72 @@ else if (View == BookViewEnum.Grid)
 
     async Task LoadData()
     {
-        BookList = await _bookService.GetBooksAsync();
+        BookList = await _bookService.GetBooksWithStatusAsync();
+        await FilterBookList();
         StateHasChanged();
     }
 
-    List<Data.Book> FilterBookList()
+    async Task ChangeView(BookViewEnum view)
     {
-        // ToDo
-        return BookList.OrderBy(b => string.IsNullOrWhiteSpace(b.Title) ? b.BookMetadata.Title : b.Title).ToList();
+        View = view;
+
+        StateHasChanged();
+    }
+
+    async Task TogglePluginFilter(Plugin plugin)
+    {
+        if (!UnmatchedPluginsToHide.Any(p => p.Identifier == plugin.Identifier) && !MatchedPluginsToHide.Any(p => p.Identifier == plugin.Identifier))
+        {
+            MatchedPluginsToHide.Add(plugin);
+        }
+        else if (MatchedPluginsToHide.Any(p => p.Identifier == plugin.Identifier))
+        {
+            MatchedPluginsToHide.Remove(plugin); 
+            UnmatchedPluginsToHide.Add(plugin);
+        }
+        else if (UnmatchedPluginsToHide.Any(p => p.Identifier == plugin.Identifier))
+        {
+            UnmatchedPluginsToHide.Remove(plugin);
+        }
+
+        FilterBookList();
+        StateHasChanged();
+    }
+
+    bool Search(Data.Book book)
+    {
+        var title = string.IsNullOrWhiteSpace(book.Title) ? book.BookMetadata.Title : book.Title;
+        var authors = book.Authors.Count == 0 ? book.BookMetadata.Authors : book.Authors.Select(a => a.Name);
+        var series = book.Series.Count == 0 ? book.BookMetadata.Series.Select(s => s.Name) : book.Series.Select(s => s.Series.Name);
+
+        var compare = title + (authors.Count() != 0 ? " " + string.Join(" ", authors) : null) + (series.Count() != 0 ? " " + string.Join(" ", series) : null);
+
+        if (string.IsNullOrWhiteSpace(SearchQuery)) return true;
+        if (Utils.StringUtils.CompareStrings(SearchQuery, compare)) return true;
+
+        return false;
+    }
+
+    bool PluginFilter(Data.Book book)
+    {
+        foreach (var plugin in MatchedPluginsToHide)
+        {
+            var identifier = book.Identifiers.FirstOrDefault(i => i.Key == plugin.Identifier);
+            if (identifier != null && (!string.IsNullOrWhiteSpace(identifier.Value) || !identifier.Exists)) return false;
+        }
+
+        foreach (var plugin in UnmatchedPluginsToHide)
+        {
+            var identifier = book.Identifiers.FirstOrDefault(i => i.Key == plugin.Identifier);
+            if (identifier == null || (string.IsNullOrWhiteSpace(identifier.Value) && identifier.Exists)) return false;
+        }
+
+        return true;
+    }
+
+    async Task FilterBookList()
+    {
+        FilteredBookList = BookList.Where(new Func<Data.Book, bool>(Search)).Where(new Func<Data.Book, bool>(PluginFilter)).OrderBy(b => string.IsNullOrWhiteSpace(b.Title) ? b.BookMetadata.Title : b.Title).ToList();
     }
 
     async Task ShowAddEditBookDialog(Data.Book book)

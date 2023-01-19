@@ -62,6 +62,13 @@ namespace Anthology.Plugins.LibrarySources
             return _bookList.FirstOrDefault(b => b.media.metadata.isbn == isbn);
         }
 
+        public List<string> GetLibraryItemList(Dictionary<string, string> settings)
+        {
+            if (_lastUpdated == null || _lastUpdated.AddMinutes(1) < DateTime.Now) GetBookList(settings);
+            if (_bookList == null) return null;
+            return _bookList.Select(b => b.media.metadata.isbn).Where(i => !string.IsNullOrWhiteSpace(i)).ToList();
+        }
+
         public bool IsBookInLibrary(string isbn, Dictionary<string, string> settings)
         {
             var libraryBook = GetBookDetails(isbn, settings);

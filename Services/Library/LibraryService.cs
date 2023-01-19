@@ -38,9 +38,11 @@ namespace Anthology.Services
                 var libraryInstance = Activator.CreateInstance(plugin.ClassType) as ILibrarySource;
                 var librarySettings = _settingsService.GetSettings().PluginSettings.Where(s => s.PluginName == plugin.Name).SelectMany(s => s.Settings).ToDictionary(s => s.Key, s => s.Value);
 
+                var libraryItemList = libraryInstance.GetLibraryItemList(librarySettings);
+
                 books = books.Select(b =>
                 {
-                    b.ExistsInLibrary = libraryInstance.IsBookInLibrary(b.ISBN, librarySettings);
+                    b.ExistsInLibrary = libraryItemList.Contains(b.ISBN);
                     return b;
                 }).ToList();
             }

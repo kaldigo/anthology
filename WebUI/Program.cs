@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
+using BlazorPro.BlazorSize;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +40,7 @@ builder.Services.AddServerSideBlazor()
     });
 builder.Services.AddDbContext<DatabaseContext>();
 builder.Services.AddMudServices();
+builder.Services.AddResizeListener();
 
 var app = builder.Build();
 

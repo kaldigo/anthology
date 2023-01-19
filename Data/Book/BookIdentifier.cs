@@ -18,15 +18,16 @@ namespace Anthology.Data
         public bool Exists { get; set; } = true;
         public virtual Book Book { get; set; }
         public BookIdentifier() { }
-        public BookIdentifier(string key, string value)
+        public BookIdentifier(string key, string value, bool exists = true)
         {
             this.Key = key;
             this.Value = value;
+            this.Exists = exists;
         }
 
         public BookIdentifier Clone()
         {
-            return new BookIdentifier(this.Key, this.Value);
+            return new BookIdentifier(this.Key, this.Value, this.Exists);
         }
     }
 }

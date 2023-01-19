@@ -1,0 +1,37 @@
+﻿.cover-card {
+  width: 200px;
+}
+.cover-card .card-header {
+  display: block;
+  height: 320px;
+}
+.cover-card .cover-img,
+.cover-card .cover-img-outer,
+.cover-card .cover-img-inner {
+  width: 200px;
+  height: 320px;
+}
+.cover-card .cover-img-outer,
+.cover-card .cover-img-inner {
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+}
+.cover-card .cover-img {
+  overflow: hidden;
+}
+.cover-card .cover-img-outer {
+  background-size: cover;
+  filter: blur(10px);
+  -webkit-filter: blur(10px);
+}
+.cover-card .cover-img-inner {
+  top: -320px;
+  background-size: contain;
+}
+.cover-card .status-icon {
+  display: block;
+  position: relative;
+  top: -28px;
+  left: 172px;
+}

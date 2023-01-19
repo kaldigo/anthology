@@ -14,7 +14,7 @@
 
 @if (ImportList == null)
 {
-    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    <LoadingIndicator />
 }
 else
 {
@@ -71,15 +71,12 @@ else
     bool Search(ImportItem importItem)
     {
         if (string.IsNullOrWhiteSpace(searchString)) return true;
-        if (CompareStrings(importItem.Metadata.Title, searchString)) return true;
-        if (importItem.Metadata.Authors.Any(a => CompareStrings(a, searchString))) return true;
-        if (importItem.Metadata.Series.Any(s => CompareStrings(s.Name, searchString))) return true;
+        if (Utils.StringUtils.CompareStrings(importItem.Metadata.Title, searchString)) return true;
+        if (importItem.Metadata.Authors.Any(a => Utils.StringUtils.CompareStrings(a, searchString))) return true;
+        if (importItem.Metadata.Series.Any(s => Utils.StringUtils.CompareStrings(s.Name, searchString))) return true;
 
         return false;
     }
-
-    bool CompareStrings(string a, string b) => (a.ToLower().Contains(b.ToLower()) || b.ToLower().Contains(a.ToLower()));
-    
 
     async Task ImportBook(TableRowClickEventArgs<ImportItem> args)
     {

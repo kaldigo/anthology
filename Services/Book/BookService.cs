@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static Anthology.Services.MetadataService;
 
 namespace Anthology.Services
 {
@@ -22,38 +23,41 @@ namespace Anthology.Services
             _pluginsService = pluginsService;
         }
 
-        public Task<List<dynamic>> Search(Dictionary<string, string> searchQuery)
+        public Task<List<ApiMetadata>> Search(Dictionary<string, string> searchQuery)
         {
             if (searchQuery["title"].Length > 4 && searchQuery["title"].Substring(0, 4) == "ANTH") searchQuery["isbn"] = searchQuery["title"];
 
             if (searchQuery["isbn"] != null && searchQuery["isbn"].Substring(0, 4) == "ANTH")
             {
                 var book = GetBookByISBN(searchQuery["isbn"]);
-                if (book != null)
-                {
-                    var searchISBN = _metadataService.GetMetadata(book).Result;
-
-                    var searchISBNList = new List<dynamic>();
-                    searchISBNList.Add(searchISBN);
-                    return Task.FromResult(searchISBNList);
-
-                }
+                if (book != null) return Task.FromResult(new List<ApiMetadata>(){ _metadataService.GetApiMetadata(book).Result });
             }
 
-            var books = GetBooks(searchQuery["title"]).Select(b => (dynamic)(_metadataService.GetApiMetadata(b))).ToList();
+            var books = GetBooks(searchQuery["title"]).Select(b => (_metadataService.GetApiMetadata(b).Result)).ToList();
             _context.SaveChanges();
             return Task.FromResult(books);
         }
 
         public List<Book> GetBooks()
         {
-            return _libraryService.SetBookLibraryStatus(_context.Books.ToList()).Result;
+            return _context.Books.ToList();
         }
 
         public async Task<List<Book>> GetBooksAsync()
         {
             Task.Delay(0);
             return GetBooks();
+        }
+
+        public async Task<List<Book>> GetBooksWithStatusAsync()
+        {
+            Task.Delay(0);
+            return GetBooksWithStatus();
+        }
+
+        public List<Book> GetBooksWithStatus()
+        {
+            return _libraryService.SetBookLibraryStatus(_context.Books.ToList()).Result;
         }
 
         public List<Book> GetBooks(string title)
@@ -68,8 +72,14 @@ namespace Anthology.Services
             return book;
         }
 
-        public void SaveBook(Book book, bool updateMetadata = false)
+        public void SaveBook(Book book, bool updateMetadata = false, bool batchImport = false)
         {
+            if (batchImport)
+            {
+                _context.Add(book);
+                _context.SaveChanges();
+                return;
+            }
             var metadataIdentifiers = _pluginsService.GetPluginList().Where(p => p.Type == Plugin.PluginType.Metadata)
                 .Select(p => p.Identifier);
 

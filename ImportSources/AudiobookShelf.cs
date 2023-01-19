@@ -1,5 +1,6 @@
 ﻿using Anthology.Plugins.Models;
 using Newtonsoft.Json;
+using System.Linq;
 using System.Net.Http.Headers;
 using static Anthology.Plugins.Models.Metadata;
 
@@ -58,7 +59,7 @@ namespace Anthology.Plugins.LibrarySources
                 {
                     var identifiers = new List<KeyValuePair<string, string>>();
                     if (!string.IsNullOrWhiteSpace(b.media.metadata.isbn)) identifiers.Add(new KeyValuePair<string, string>("ISBN", b.media.metadata.isbn));
-                    if (!string.IsNullOrWhiteSpace(b.media.metadata.asin)) identifiers.Add(new KeyValuePair<string, string>("ASIN", b.media.metadata.asin));
+                    if (!string.IsNullOrWhiteSpace(b.media.metadata.asin) && b.media.audioFiles.First().metadata.path.Contains(b.media.metadata.asin)) identifiers.Add(new KeyValuePair<string, string>("ASIN", b.media.metadata.asin));
                     return new ImportItem()
                     {
                         Key = IdentifierKey,
@@ -67,10 +68,17 @@ namespace Anthology.Plugins.LibrarySources
                         Metadata = new Metadata()
                         {
                             Title = b.media.metadata.title,
+                            Subtitle = b.media.metadata.subtitle,
                             Authors = b.media.metadata.authors.Select(a => a.name).ToList(),
                             Narrators = b.media.metadata.narrators,
                             Series = b.media.metadata.series
-                                .Select(s => new MetadataSeries(s.name, s.sequence.ToString())).ToList()
+                                .Select(s => new MetadataSeries(s.name, s.sequence.ToString())).ToList(),
+                            Description = b.media.metadata.description,
+                            Publisher = b.media.metadata.publisher,
+                            Language = b.media.metadata.language,
+                            Genres = b.media.metadata.genres,
+                            Tags = b.media.tags,
+                            Covers = new List<string>() { settings["Url"] + "/api/items/" + b.id + "/cover?token=" + settings["Bearer"] }
                         }
                     };
                 }

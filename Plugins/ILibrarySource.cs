@@ -11,6 +11,7 @@ namespace Anthology.Plugins
     {
         string Name { get; }
         List<string> Settings { get; }
+        public List<string> GetLibraryItemList(Dictionary<string, string> settings);
         bool IsBookInLibrary(string isbn, Dictionary<string,string> settings);
     }
 }
