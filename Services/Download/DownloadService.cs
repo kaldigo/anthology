@@ -8,11 +8,13 @@ namespace Anthology.Services
     {
         IPluginsService _pluginsService;
         ISettingsService _settingsService;
+        IBookService _bookService;
 
-        public DownloadService(IPluginsService pluginsService, ISettingsService settingsService)
+        public DownloadService(IPluginsService pluginsService, ISettingsService settingsService, IBookService bookService)
         {
             _pluginsService = pluginsService;
             _settingsService = settingsService;
+            _bookService = bookService;
         }
 
         public Task<List<Download>> GetDownloadList()
@@ -33,13 +35,21 @@ namespace Anthology.Services
 
         public async Task DownloadBook(Download download)
         {
+
+            var book = _bookService.GetBooks().FirstOrDefault(b => b.Identifiers.Any(i => i.Key == download.Key && i.Value == download.Identifier));
+            if (book != null)
+            {
+                download.Title = string.IsNullOrWhiteSpace(book.Title) ? book.BookMetadata.Title : book.Title;
+                download.Author = book.Authors.Count == 0 ? book.BookMetadata.Authors : book.Authors.Select(a => a.Name).ToList();
+            }
+
             var plugin = _pluginsService.GetPluginList().FirstOrDefault(p => p.Type == Plugin.PluginType.Download && p.Identifier == download.Key);
             if (plugin == null) throw new NullReferenceException();
 
             var downloadInstance = Activator.CreateInstance(plugin.ClassType) as IDownloadSource;
             var downloadSettings = _settingsService.GetSettings().PluginSettings.Where(s => s.PluginName == plugin.Name).SelectMany(s => s.Settings).ToDictionary(s => s.Key, s => s.Value);
 
-            downloadInstance.DownloadBook(download, Utils.FileUtils.GetMediaPath(), downloadSettings);
+            downloadInstance.DownloadBook(download, Utils.FileUtils.GetDownloadPath(), downloadSettings);
         }
     }
 }
