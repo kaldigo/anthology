@@ -90,7 +90,7 @@ namespace Anthology.Plugins.MetadataSources
             metadata.PublishDate = audibleBook.releaseDate;
             metadata.Genres = audibleBook.genres.Where(i => i.type == "genre").Select(i => i.name).ToList();
             metadata.Tags = audibleBook.genres.Where(i => i.type == "tag").Select(i => i.name).ToList();
-            metadata.Language = audibleBook.language;
+            metadata.Language = string.IsNullOrWhiteSpace(audibleBook.language) ? null : System.Threading.Thread.CurrentThread.CurrentCulture.TextInfo.ToTitleCase(audibleBook.language.ToLower());
             metadata.Covers = new List<string>() { { audibleBook.image } };
 
             return metadata;
