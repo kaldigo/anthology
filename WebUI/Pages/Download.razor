@@ -74,9 +74,7 @@ else
 
     async Task StartBookDownload(Plugins.Models.Download download)
     {
-        await _downloadService.DownloadBook(download);
-
-        await LoadData();
+        await _downloadService.DownloadBook(download).ContinueWith(d => LoadData());
     }
 
     async Task ShowAddEditBookDialog(Plugins.Models.Download download)
@@ -101,7 +99,10 @@ else
         var dialog = await _dialog.ShowAsync<AddEditBook>("Download Book", parameters, options);
         var result = await dialog.Result;
 
+        StateHasChanged();
+
         if (result != null && (string)result.Data == "Added") Task.Run(() => StartBookDownload(download));
+
     }
 
     async Task ShowMatchToBookDialog(Plugins.Models.Download download)

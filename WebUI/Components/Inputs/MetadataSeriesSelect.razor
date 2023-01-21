@@ -36,7 +36,7 @@
             <div class="metadatamultiselect-container d-flex flex-wrap gap-2">
                 @foreach (var selectedOption in SelectValue)
                 {
-                    var optionName = selectedOption.Series.Name + " #" + selectedOption.Sequence;
+                    var optionName = selectedOption.Series.Name + (string.IsNullOrWhiteSpace(selectedOption.Sequence) ? "" : " #" + selectedOption.Sequence);
                     <MudChip Class="ma-0" Color="Color.Primary" Size="Size.Small" Text="@optionName" Value="@selectedOption" OnClick="@(() => ShowAddEditBookSeriesDialog(selectedOption))" OnClose="RemoveSelectedOption" />
                 }
                 <MudChip Class="ma-0 add-icon" Color="Color.Primary" Size="Size.Small" Icon="@Icons.Material.Filled.Add" OnClick="@(() => ShowAddEditBookSeriesDialog())" />

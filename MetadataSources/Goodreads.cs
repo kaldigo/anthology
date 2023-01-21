@@ -96,6 +96,8 @@ namespace Anthology.Plugins.MetadataSources
             {
                 switch (mostPopularEdition.Language.ToLower().Trim())
                 {
+                    case "en-us":
+                    case "en-gb":
                     case "eng":
                     case "english":
                         metadata.Language = "English";
