@@ -3,7 +3,9 @@
 @using Anthology.WebUI.Components.Modals
 @using Anthology.WebUI.Components.Elements
 @using Anthology.Services
+@using Microsoft.AspNetCore.WebUtilities
 
+@inject NavigationManager NavManager
 @inject Anthology.Services.IBookService _bookService
 @inject Anthology.Services.IPluginsService _pluginsService
 @inject MudBlazor.ISnackbar _snackBar
@@ -45,7 +47,7 @@ else if (View == BookViewEnum.List)
 @code
 {
     private BookViewEnum View { get; set; } = BookViewEnum.Grid;
-    
+
     private List<Data.Book> BookList { get; set; }
 
     private List<Data.Book> FilteredBookList { get; set; }
@@ -62,6 +64,7 @@ else if (View == BookViewEnum.List)
     {
         await base.OnInitializedAsync();
         MetadataPlugins = _pluginsService.GetPluginList().Where(p => p.Type == Plugin.PluginType.Metadata).ToList();
+        SetQueryStringValues();
     }
 
 
@@ -144,6 +147,7 @@ else if (View == BookViewEnum.List)
     async Task FilterBookList()
     {
         FilteredBookList = BookList.Where(new Func<Data.Book, bool>(Search)).Where(new Func<Data.Book, bool>(PluginFilter)).OrderBy(b => string.IsNullOrWhiteSpace(b.Title) ? b.BookMetadata.Title : b.Title).ToList();
+        UpdateQueryString();
     }
 
     async Task ShowAddEditBookDialog(Data.Book book)
@@ -162,6 +166,40 @@ else if (View == BookViewEnum.List)
         Directory.Delete(Utils.FileUtils.GetTempPath(), true);
         
         LoadData();
+    }
+
+    void SetQueryStringValues()
+    {
+        var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+        var queryStrings = QueryHelpers.ParseQuery(uri.Query);
+        if (queryStrings.TryGetValue("search", out var search)) SearchQuery = search;
+
+        if (queryStrings.TryGetValue("hideMatched", out var hideMatched))
+        {
+            foreach (var pluginIdentifier in ((string)hideMatched).Split(','))
+            {
+                var plugin = MetadataPlugins.FirstOrDefault(p => p.Identifier == pluginIdentifier);
+                if (plugin != null) MatchedPluginsToHide.Add(plugin);
+            }
+        }
+
+        if (queryStrings.TryGetValue("hideUnmatched", out var hideUnmatched))
+        {
+            foreach (var pluginIdentifier in ((string)hideUnmatched).Split(','))
+            {
+                var plugin = MetadataPlugins.FirstOrDefault(p => p.Identifier == pluginIdentifier);
+                if (plugin != null) UnmatchedPluginsToHide.Add(plugin);
+            }
+        }
+    }
+
+    void UpdateQueryString()
+    {
+        var queryParams = new Dictionary<string, string>();
+        if (!string.IsNullOrWhiteSpace(SearchQuery)) queryParams.Add("search", SearchQuery);
+        if (MatchedPluginsToHide.Count != 0) queryParams.Add("hideMatched", string.Join(",", MatchedPluginsToHide.Select(p => p.Identifier)));
+        if (UnmatchedPluginsToHide.Count != 0) queryParams.Add("hideUnmatched", string.Join(",", UnmatchedPluginsToHide.Select(p => p.Identifier)));
+        NavManager.NavigateTo(QueryHelpers.AddQueryString("Books", queryParams));
     }
 
     enum BookViewEnum
