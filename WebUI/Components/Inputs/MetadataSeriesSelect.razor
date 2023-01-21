@@ -12,21 +12,21 @@
         height: 100%;
     }
 
-    .metadatamultiselect-container .mud-chip button {
-        display: none;
+        .metadatamultiselect-container .mud-chip button {
+            display: none;
         }
 
-    .metadatamultiselect-container .mud-chip:hover button {
-        display: flex;
-    }
+        .metadatamultiselect-container .mud-chip:hover button {
+            display: flex;
+        }
 
-    .metadatamultiselect-container .add-icon {
-        padding: 0 2px !important;
-    }
+        .metadatamultiselect-container .add-icon {
+            padding: 0 2px !important;
+        }
 
-    .metadatamultiselect-container .add-icon svg {
-        margin: 0px;
-    }
+            .metadatamultiselect-container .add-icon svg {
+                margin: 0px;
+            }
 
 </style>
 
@@ -45,7 +45,20 @@
             <div class="mud-input-outlined-border"></div>
         </div>
         <label class="mud-input-label mud-input-label-animated mud-input-label-outlined mud-input-label-margin-dense mud-input-label-inputcontrol">@Label</label>
+    </div>
+    @if (!(_selectValue.Count == MetadataValue.Count && _selectValue.All(s => MetadataValue.Any(m => m.Series.Name == s.Series.Name && m.Sequence == s.Sequence))) && _selectValue.Count != 0)
+    {
+
+        <div class="mud-input-control-helper-container px-2">
+            <p class="mud-input-helper-text">
+                <div class="d-flex">
+                    <div class="me-auto">
+                        @string.Join(", ",(MetadataValue.Select(s => s.Series.Name + (string.IsNullOrWhiteSpace(s.Sequence) ? "" : " #" + s.Sequence))))
+                    </div>
+                </div>
+            </p>
         </div>
+    }
 </div>
 
 @code {
@@ -61,7 +74,7 @@
         {
             if (Equals(_selectValue, value) || ((_selectValue != null && _selectValue.Count == 0) && value.Count == 0)) return;
             _selectValue = value;
-            if (object.Equals(value, MetadataValue) || _selectValue.Count == 0) SelectValueChanged.InvokeAsync(new List<BookSeries>());
+            if ((value.Count == MetadataValue.Count && value.All(s => MetadataValue.Any(m => m.Series.Name == s.Series.Name && m.Sequence == s.Sequence))) || value.Count == 0) SelectValueChanged.InvokeAsync(new List<BookSeries>());
             else SelectValueChanged.InvokeAsync(value);
         }
     }
@@ -82,7 +95,7 @@
             newBookSeries = true;
             bookSeries = new BookSeries();
         }
-        var parameters = new DialogParameters { ["BookSeries"] = bookSeries, ["IsNewBookSeries"] = newBookSeries, ["ExistingSeries"] = ExistingValues };
+        var parameters = new DialogParameters { ["Series"] = bookSeries.Series.Name, ["Sequence"] = bookSeries.Sequence, ["IsNewBookSeries"] = newBookSeries, ["ExistingSeries"] = ExistingValues };
         var options = new DialogOptions() { MaxWidth = MaxWidth.Medium, CloseOnEscapeKey = true, };
 
         var dialog = await _dialog.ShowAsync<AddEditBookSeries>(newBookSeries ? "New Series" : "Edit Series", parameters, options);
@@ -90,15 +103,24 @@
 
         if (!result.Cancelled)
         {
-            var option = SelectValue.FirstOrDefault(b => b.Series.Name == ((BookSeries)(result.Data)).Series.Name);
+            var series = ExistingValues.FirstOrDefault(s => s.Name == ((BookSeries)(result.Data)).Series.Name);
+            if (series == null)
+            {
+                series = new Series(((BookSeries)(result.Data)).Series.Name);
+                ExistingValues.Add(series);
+            }
+            var sequence = ((BookSeries)(result.Data)).Sequence;
+
+            var option = _selectValue.FirstOrDefault(b => b.Series.Name == series.Name);
             if (option == null)
             {
-                option = new BookSeries(((BookSeries)(result.Data)).Series, ((BookSeries)(result.Data)).Sequence);
-                SelectValue = SelectValue.Concat(new List<BookSeries>(){option}).ToList();
+                option = new BookSeries(series, sequence);
+                SelectValue = _selectValue.Concat(new List<BookSeries>() { option }).ToList();
             }
             else
             {
-                option.Sequence = ((BookSeries)(result.Data)).Sequence;
+                option.Sequence = sequence;
+                SelectValue = SelectValue;
             }
         }
     }

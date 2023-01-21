@@ -1,15 +1,16 @@
 ﻿@using Anthology.WebUI.Components.Inputs
+@using Anthology.Data
 
 <MudDialog Class="add-edit-book-series-dialog">
     <DialogContent>
         <MudGrid>
             <MudItem xs="8">
-                <MudAutocomplete T="string" @ref="_autocomplete" Value="@CurrentSeries" SearchFunc="@Search" Adornment="Adornment.None"
+                <MudAutocomplete T="string" @ref="_autocomplete" Value="@Series" SearchFunc="@Search" Adornment="Adornment.None"
                                  CoerceValue="true" SelectValueOnTab="true" ResetValueOnEmptyText="true" Variant="Variant.Outlined" Margin="Margin.Dense"
                                  IsOpenChanged="@AddSelectedOption" OnKeyUp="AddNewOption" />
             </MudItem>
             <MudItem xs="4">
-                <MudTextField @bind-Value="BookSeries.Sequence" Label="Sequence" Adornment="Adornment.None" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudTextField @bind-Value="Sequence" Label="Sequence" Adornment="Adornment.None" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
         </MudGrid>
     </DialogContent>
@@ -24,9 +25,10 @@
     MudDialogInstance MudDialog { get; set; }
 
     [Parameter]
-    public Data.BookSeries BookSeries { get; set; } = new();
+    public string Series { get; set; }
 
-    string CurrentSeries => BookSeries.Series != null ? BookSeries.Series.Name : null;
+    [Parameter]
+    public string Sequence { get; set; }
 
     public List<Data.Series> _existingSeries { get; set; }
     [Parameter]
@@ -52,7 +54,7 @@
 
     private void SaveSeries()
     {
-        MudDialog.Close(DialogResult.Ok(BookSeries));
+        MudDialog.Close(DialogResult.Ok(new BookSeries(new Series(Series), Sequence)));
     }
 
     private async Task<IEnumerable<string>> Search(string value)
@@ -85,7 +87,7 @@
                 series = new Data.Series() { Name = _autocomplete.Value };
                 ExistingSeries.Add(series);
             }
-            BookSeries.Series = series;
+            Series = series.Name;
         }
     }
 }
