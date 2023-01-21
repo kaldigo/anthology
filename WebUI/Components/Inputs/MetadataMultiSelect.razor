@@ -44,6 +44,19 @@
         </div>
         <label class="mud-input-label mud-input-label-animated mud-input-label-outlined mud-input-label-margin-dense mud-input-label-inputcontrol">@Label</label>
     </div>
+    @if (!ListUtils.CompareLists(_selectValue, MetadataValue, "Name") && _selectValue.Count != 0)
+    {
+
+        <div class="mud-input-control-helper-container px-2">
+            <p class="mud-input-helper-text">
+                <div class="d-flex">
+                    <div class="me-auto">
+                        @string.Join(", ",MetadataValue.Select(c => typeof(T).GetProperty("Name").GetValue(c).ToString()))
+                    </div>
+                </div>
+            </p>
+        </div>
+    }
 </div>
 
 @code {
@@ -100,7 +113,7 @@
         }
 
         ExistingValues.Add(option);
-        SelectValue = SelectValue.Concat(new List<T>() {option}).ToList();
+        SelectValue = SelectValue.Concat(new List<T>() { option }).ToList();
     }
 
     void RemoveSelectedOption(MudChip chip)
