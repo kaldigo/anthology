@@ -11,22 +11,28 @@
         height: 100%;
     }
 
-        .metadatamultiselect-container .mud-chip button {
-            display: none;
-        }
+    .metadatamultiselect-container .mud-chip button {
+        display: none;
+    }
 
-        .metadatamultiselect-container .mud-chip:hover button {
-            display: flex;
-        }
+    .metadatamultiselect-container .mud-chip:hover button {
+        display: flex;
+    }
 
     .metadatamultiselect-autocomplete,
     .metadatamultiselect-autocomplete .mud-input {
         margin: 0px !important;
     }
 
-        .metadatamultiselect-autocomplete .mud-input-slot {
-            padding: 2.5px 0px !important;
-        }
+    .metadatamultiselect-autocomplete .mud-input-slot {
+        padding: 2.5px 0px !important;
+    }
+
+    .metadatamultiselect-container .mud-select.mud-autocomplete {
+        flex-grow: 1;
+        flex-shrink: 1;
+        width: 20px;
+    }
 </style>
 
 <div class="mud-input-control mud-input-control-margin-dense mud-input-input-control metadatamultiselect">
@@ -72,7 +78,7 @@
         {
             if (ListUtils.CompareLists(_selectValue, value)) return;
             _selectValue = value;
-            if (ListUtils.CompareLists(value, MetadataValue) || value.Count == 0) SelectValueChanged.InvokeAsync(new List<T>());
+            if (ListUtils.CompareLists(_selectValue, MetadataValue, "Name") && _selectValue.Count == 0) SelectValueChanged.InvokeAsync(new List<T>());
             else SelectValueChanged.InvokeAsync(value);
         }
     }
@@ -118,7 +124,7 @@
 
     void RemoveSelectedOption(MudChip chip)
     {
-        SelectValue.Remove((T)chip.Value);
+        SelectValue = SelectValue.Where(v => !object.Equals(v, (T)chip.Value)).ToList();
     }
 
 }
