@@ -79,7 +79,8 @@ namespace Anthology.Plugins.MetadataSources
                 metadata.Series = book.Series.Select(s =>
                 {
                     var title = s.Title;
-                    var linkItem = s.LinkItems.FirstOrDefault(i => i.ForeignWorkId == book.ForeignId && i.Primary);
+                    var linkItems = s.LinkItems.Where(i => i.ForeignWorkId == book.ForeignId);
+                    var linkItem = linkItems.Any(l => l.Primary) ? linkItems.First(l => l.Primary) : linkItems.First();
                     var position = "";
                     if (linkItem != null) position = linkItem.PositionInSeries;
                     return new Metadata.MetadataSeries(title, position);
