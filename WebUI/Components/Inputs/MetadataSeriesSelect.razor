@@ -89,16 +89,10 @@
 
     async Task ShowAddEditBookSeriesDialog(Data.BookSeries bookSeries = null)
     {
-        var newBookSeries = false;
-        if (bookSeries == null)
-        {
-            newBookSeries = true;
-            bookSeries = new BookSeries();
-        }
-        var parameters = new DialogParameters { ["Series"] = bookSeries.Series.Name, ["Sequence"] = bookSeries.Sequence, ["IsNewBookSeries"] = newBookSeries, ["ExistingSeries"] = ExistingValues };
+        var parameters = new DialogParameters { ["Series"] = bookSeries == null ? "" : bookSeries.Series.Name, ["Sequence"] = bookSeries == null ? "" : bookSeries.Sequence, ["IsNewBookSeries"] = bookSeries == null, ["ExistingSeries"] = ExistingValues };
         var options = new DialogOptions() { MaxWidth = MaxWidth.Medium, CloseOnEscapeKey = true, };
 
-        var dialog = await _dialog.ShowAsync<AddEditBookSeries>(newBookSeries ? "New Series" : "Edit Series", parameters, options);
+        var dialog = await _dialog.ShowAsync<AddEditBookSeries>(bookSeries == null ? "New Series" : "Edit Series", parameters, options);
         var result = await dialog.Result;
 
         if (!result.Cancelled)
