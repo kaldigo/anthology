@@ -5,9 +5,9 @@
     <DialogContent>
         <MudGrid>
             <MudItem xs="8">
-                <MudAutocomplete T="string" @ref="_autocomplete" Value="@Series" SearchFunc="@Search" Adornment="Adornment.None"
-                                 CoerceValue="true" SelectValueOnTab="true" ResetValueOnEmptyText="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                 IsOpenChanged="@AddSelectedOption" OnKeyUp="AddNewOption" />
+                <MudAutocomplete T="string" @ref="_autocomplete" @bind-Value="Series" SearchFunc="@Search" Adornment="Adornment.None"
+                                 CoerceValue="true" Immediate="true" SelectValueOnTab="true" ResetValueOnEmptyText="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  OnKeyUp="AddNewOption" />
             </MudItem>
             <MudItem xs="4">
                 <MudTextField @bind-Value="Sequence" Label="Sequence" Adornment="Adornment.None" Variant="Variant.Outlined" Margin="Margin.Dense" />
@@ -74,20 +74,6 @@
         if (keyboardEvent.Code == "Enter")
         {
             _autocomplete.ToggleMenu();
-        }
-    }
-
-    void AddSelectedOption()
-    {
-        if (!_autocomplete.IsOpen && !string.IsNullOrWhiteSpace(_autocomplete.Value))
-        {
-            var series = ExistingSeries.FirstOrDefault(e => e.Name == _autocomplete.Value);
-            if (series == null)
-            {
-                series = new Data.Series() { Name = _autocomplete.Value };
-                ExistingSeries.Add(series);
-            }
-            Series = series.Name;
         }
     }
 }

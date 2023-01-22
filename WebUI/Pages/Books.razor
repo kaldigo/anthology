@@ -75,7 +75,6 @@ else if (View == BookViewEnum.List)
         if (firstRender)
         {
             await LoadData();
-
         }
     }
 
@@ -146,8 +145,11 @@ else if (View == BookViewEnum.List)
 
     async Task FilterBookList()
     {
-        FilteredBookList = BookList.Where(new Func<Data.Book, bool>(Search)).Where(new Func<Data.Book, bool>(PluginFilter)).OrderBy(b => string.IsNullOrWhiteSpace(b.Title) ? b.BookMetadata.Title : b.Title).ToList();
-        UpdateQueryString();
+        if (BookList != null)
+        {
+            FilteredBookList = BookList.Where(new Func<Data.Book, bool>(Search)).Where(new Func<Data.Book, bool>(PluginFilter)).OrderBy(b => string.IsNullOrWhiteSpace(b.Title) ? b.BookMetadata.Title : b.Title).ToList();
+            UpdateQueryString();
+        }
     }
 
     async Task ShowAddEditBookDialog(Data.Book book)

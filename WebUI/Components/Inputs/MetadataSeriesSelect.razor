@@ -109,7 +109,7 @@
             if (option == null)
             {
                 option = new BookSeries(series, sequence);
-                SelectValue = _selectValue.Concat(new List<BookSeries>() { option }).ToList();
+                SelectValue = SelectValue.Concat(new List<BookSeries>() { option }).ToList();
             }
             else
             {
