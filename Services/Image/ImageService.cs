@@ -106,7 +106,7 @@ namespace Anthology.Services
             var directory = Path.GetDirectoryName(path);
             Directory.CreateDirectory(directory);
             await using FileStream fs = new(path, FileMode.Create);
-            await image.OpenReadStream().CopyToAsync(fs);
+            await image.OpenReadStream(512000000 ).CopyToAsync(fs);
             return tempImage;
         }
     }

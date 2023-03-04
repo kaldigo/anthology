@@ -9,6 +9,7 @@ namespace Anthology.Data
         [Key]
         public Guid ID { get; set; } = new Guid();
         public string FileName { get; set; }
+        public bool IsPrimary { get; set; } = false;
         public Image() { }
         public Image(string fileName)
         {
