@@ -15,9 +15,12 @@
     .add-edit-book-dialog .mud-dialog-content {
         padding: 0px 0px !important;
     }
-
     .add-edit-book-dialog .mud-dialog-actions {
         box-shadow: 0px -2px 1px -1px rgba(0, 0, 0, 0.2), 0px -1px 1px 0px rgba(0, 0, 0, 0.14), 0px -1px 3px 0px rgba(0, 0, 0, 0.12);
+    }
+    .add-edit-book-dialog .tab-panel {
+        max-height: 80vh;
+        overflow-y: auto;
     }
 </style>
 
@@ -33,18 +36,18 @@ else
 {
     <MudDialog Class="add-edit-book-dialog">
         <DialogContent>
-            <MudTabs @ref="tabs" Elevation="1" Rounded="true" PanelClass="pa-6" DisableRipple="true">
+            <MudTabs @ref="tabs" Elevation="1" Rounded="true" PanelClass="pa-6 tab-panel" DisableRipple="true">
                 <MudTabPanel ID="@("DetailsTab")" Text="Details">
                     <Details @bind-Book="BookEdited" Classifications="Classifications" MetadataClassifications="MetadataClassifications" People="People" Series="Series" />
                 </MudTabPanel>
-                <MudTabPanel ID="@("CoversTab")" Text="Covers">
+                <MudTabPanel ID="@("CoversTab")" Text="Covers" Style="max-height: 80vh; overflow-y: auto;">
                     <Covers @bind-Book="BookEdited" @bind-NewBookCovers="NewBookCovers" @bind-NewAudiobookCovers="NewAudiobookCovers" @bind-CoversToDelete="ImagesToDelete" />
                 </MudTabPanel>
-                <MudTabPanel ID="@("ExtraImagesTab")" Text="Extra Images">
+                <MudTabPanel ID="@("ExtraImagesTab")" Text="Extra Images" Style="max-height: 80vh; overflow-y: auto;">
                     <MudText>Extra Images</MudText>
                     <ExtraImages @bind-Book="BookEdited" @bind-NewBookImages="NewBookImages" @bind-CoversToDelete="ImagesToDelete" />
                 </MudTabPanel>
-                <MudTabPanel ID="@("MatchTab")" Text="Match">
+                <MudTabPanel ID="@("MatchTab")" Text="Match" Style="max-height: 80vh; overflow-y: auto;">
                     <MudText>Match</MudText>
                     <MatchBook @bind-Book="BookEdited" BookMatched="@MatchBook" />
                 </MudTabPanel>
@@ -118,6 +121,9 @@ else
 
     private void RefreshMetadata()
     {
+        Loading = true;
+        StateHasChanged();
+
         _metadataService.RefreshBookMetadata(BookEdited);
         LoadData();
     }
@@ -161,6 +167,7 @@ else
         {
             var newFilename = Guid.NewGuid().ToString() + Path.GetExtension(tempImage.FileName);
             var cover = new BookCover() { Book = BookEdited, FileName = newFilename };
+            if (BookEdited.BookCovers.Count == 0) cover.IsPrimary = true;
             Directory.CreateDirectory(Path.GetDirectoryName(cover.GetPath()));
             File.Move(tempImage.GetPath(), cover.GetPath());
             BookEdited.BookCovers.Add(cover);
@@ -172,6 +179,7 @@ else
         {
             var newFilename = Guid.NewGuid().ToString() + Path.GetExtension(tempImage.FileName);
             var cover = new AudiobookCover() { Book = BookEdited, FileName = newFilename };
+            if (BookEdited.AudiobookCovers.Count == 0) cover.IsPrimary = true;
             Directory.CreateDirectory(Path.GetDirectoryName(cover.GetPath()));
             File.Move(tempImage.GetPath(), cover.GetPath());
             BookEdited.AudiobookCovers.Add(cover);

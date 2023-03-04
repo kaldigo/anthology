@@ -24,7 +24,9 @@
     {
         get
         {
+            if (Book.BookCovers.Any(b => b.IsPrimary)) return Book.BookCovers.First(b => b.IsPrimary).GetUrl();
             if (Book.BookCovers.Any()) return Book.BookCovers.First().GetUrl();
+            if (Book.AudiobookCovers.Any(b => b.IsPrimary)) return Book.AudiobookCovers.First(b => b.IsPrimary).GetUrl();
             if (Book.AudiobookCovers.Any()) return Book.AudiobookCovers.First().GetUrl();
             if (Book.BookMetadata.Covers.Any()) return Book.BookMetadata.Covers.First();
             return "https://bookstoreromanceday.org/wp-content/uploads/2020/08/book-cover-placeholder.png";

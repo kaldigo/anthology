@@ -66,6 +66,17 @@
             @if (!ExternalImages)
             {
                 <div class="pa-2 d-flex flex-row-reverse">
+                    @if (HasPrimaryImage)
+                    {
+                        if (image.IsPrimary)
+                        {
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small">Primary</MudButton>
+                        }
+                        else
+                        {
+                            <MudButton Variant="Variant.Text" Color="Color.Success" Size="Size.Small" OnClick="@(() => SetPrimary.InvokeAsync(image))">Set Primary</MudButton>
+                        }
+                    }
                     <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteImage.InvokeAsync(image))">Delete</MudButton>
                 </div>
             }
@@ -93,6 +104,9 @@
     public List<TempImage> NewImages { get; set; } = new();
 
     [Parameter]
+    public EventCallback<Data.Image> SetPrimary { get; set; }
+
+    [Parameter]
     public EventCallback<Data.Image> DeleteImage { get; set; }
 
     [Parameter]
@@ -100,5 +114,8 @@
 
     [Parameter]
     public bool ExternalImages { get; set; } = false;
+
+    [Parameter]
+    public bool HasPrimaryImage { get; set; } = false;
 
 }

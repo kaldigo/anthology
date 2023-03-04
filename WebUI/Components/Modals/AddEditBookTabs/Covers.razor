@@ -22,9 +22,10 @@
         </MudFileUpload>
         </div>
 
-        <ImageScrollGallary Images="@BookCovers" NewImages="@NewBookCovers" DeleteNewImage="@DeleteNewBookCover" DeleteImage="@DeleteBookCover"/>
+        <ImageScrollGallary Images="@BookCovers" NewImages="@NewBookCovers" HasPrimaryImage="true" SetPrimary="@SetPriamryBookCover" DeleteNewImage="@DeleteNewBookCover" DeleteImage="@DeleteBookCover"/>
     </MudItem>
-    <MudItem Class="d-flex gap-4" xs="12">
+    <MudItem xs="12">
+        <div class="d-flex gap-4 mb-4">
         <MudText Typo="Typo.h6">Audiobook Covers</MudText>
 
         <MudFileUpload T="IBrowserFile" FilesChanged="AddAudiobookCover">
@@ -37,9 +38,10 @@
                     Upload
                 </MudButton>
             </ButtonTemplate>
-        </MudFileUpload>
+            </MudFileUpload>
+        </div>
 
-        <ImageScrollGallary Images="@AudiobookCovers" NewImages="@NewAudiobookCovers" DeleteNewImage="@DeleteNewAudiobookCover" DeleteImage="@DeleteAudiobookCover" />
+        <ImageScrollGallary Images="@AudiobookCovers" NewImages="@NewAudiobookCovers" HasPrimaryImage="true" SetPrimary="@SetPriamryAudiobookCover" DeleteNewImage="@DeleteNewAudiobookCover" DeleteImage="@DeleteAudiobookCover" />
     </MudItem>
     <MudItem xs="12">
         <MudText Typo="Typo.h6">Metadata Covers</MudText>
@@ -158,6 +160,20 @@
         var cover = (Data.AudiobookCover)image;
         CoversToDelete = CoversToDelete.Concat(new List<string>() { cover.GetPath() }).ToList();
         Book.AudiobookCovers.Remove(cover);
+    }
+
+    async Task SetPriamryBookCover(Image image)
+    {
+        var cover = (Data.BookCover)image;
+        Book.BookCovers.ForEach(c => c.IsPrimary = false);
+        cover.IsPrimary = true;
+    }
+
+    async Task SetPriamryAudiobookCover(Image image)
+    {
+        var cover = (Data.AudiobookCover)image;
+        Book.AudiobookCovers.ForEach(c => c.IsPrimary = false);
+        cover.IsPrimary = true;
     }
 
 }
