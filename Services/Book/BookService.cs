@@ -83,14 +83,8 @@ namespace Anthology.Services
             return book;
         }
 
-        public void SaveBook(Book book, bool updateMetadata = false, bool batchImport = false)
+        public void SaveBook(Book book, bool updateMetadata = false)
         {
-            if (batchImport)
-            {
-                _context.Add(book);
-                _context.SaveChanges();
-                return;
-            }
             var metadataIdentifiers = _pluginsService.GetPluginList().Where(p => p.Type == Plugin.PluginType.Metadata)
                 .Select(p => p.Identifier);
 

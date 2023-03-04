@@ -1,45 +1,95 @@
 ﻿@page "/Testing"
 @using Anthology.WebUI.Components.Modals
 @using Anthology.Data
+@using Anthology.Utils
 @using Anthology.WebUI.Components.Elements
+@using System.Formats.Asn1
 
 <PageTitle>Testing</PageTitle>
 
 @inject Anthology.Services.IBookService _bookService
-@inject Anthology.Services.IImportService _importService
-@inject Anthology.Services.IPluginsService _pluginsService
+@inject Anthology.Services.IMetadataService _metadataService
 @inject NavigationManager NavManager
 
 <MudButton OnClick="ImportBooks" Variant="Variant.Filled" Color="Color.Primary">Import</MudButton>
+<p>Number of ID Records: @Import.Where(i => Books.Select(b => b.ISBN).Contains(i.ISBN)).ToList().Count</p>
 
 @code
 {
+    List<Book> Books { get; set; }
+    List<IDImport> Import { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        Books = _bookService.GetBooks();
+        string importString = File.ReadAllText(Path.Combine(FileUtils.GetConfigPath(), "Import.json"));
+        Import = Newtonsoft.Json.JsonConvert.DeserializeObject<List<IDImport>>(importString);
+    }
+
     async Task ImportBooks()
     {
-        var bookList = await _bookService.GetBooksAsync();
-        var importList = await _importService.GetImportList();
-        importList = importList.Where(i =>
+        foreach (var import in Import.Where(i => Books.Select(b => b.ISBN).Contains(i.ISBN)))
         {
-            var isbn = i.Identifiers.Any(i => i.Key == "ISBN") ? i.Identifiers.FirstOrDefault(i => i.Key == "ISBN").Value : null;
-            if (isbn == null) return true;
-            return !bookList.Any(b => b.ISBN == isbn);
-        }).ToList();
-        foreach (var import in importList)
-        {
-            var identifiers = _pluginsService.GetPluginList().Select(p => p.Identifier).Distinct().Where(p => !string.IsNullOrWhiteSpace(p) && p != import.Key).OrderBy(i => i);
-            var isbn = import.Identifiers.Any(i => i.Key == "ISBN") ? import.Identifiers.FirstOrDefault(i => i.Key == "ISBN").Value : null;
-            var book = new Data.Book()
-                {
-                    ISBN = isbn
-                };
-            book.BookMetadata = import.Metadata;
-            book.Identifiers = import.Identifiers.Where(i => i.Key != "ISBN").Select(i => new BookIdentifier(i.Key, i.Value)).ToList();
+            var book = Books.First(b => b.ISBN == import.ISBN);
 
-            book.Identifiers.Add(new Data.BookIdentifier(import.Key, import.Identifier));
+            var asin = book.Identifiers.FirstOrDefault(i => i.Key == "ASIN");
+            var agid = book.Identifiers.FirstOrDefault(i => i.Key == "AGID");
+            var grid = book.Identifiers.FirstOrDefault(i => i.Key == "GRID");
 
-            _bookService.SaveBook(book, false, true);
+            if (asin == null)
+            {
+                asin = new BookIdentifier("ASIN", "");
+            }
+            if (agid == null)
+            {
+                agid = new BookIdentifier("AGID", "");
+            }
+            if (grid == null)
+            {
+                grid = new BookIdentifier("GRID", "");
+            }
+
+            if (string.IsNullOrWhiteSpace(asin.Value)) asin.Value = import.ASIN;
+            if (string.IsNullOrWhiteSpace(agid.Value)) agid.Value = import.AGID;
+            if (string.IsNullOrWhiteSpace(grid.Value)) grid.Value = import.GRID;
+
+            if (string.IsNullOrWhiteSpace(asin.Value)) asin.Exists = false;
+            if (string.IsNullOrWhiteSpace(agid.Value)) agid.Exists = false;
+
+            var identifierList = new List<BookIdentifier>();
+
+            if ((!string.IsNullOrWhiteSpace(asin.Value) && asin.Exists) || !asin.Exists) identifierList.Add(asin);
+            if ((!string.IsNullOrWhiteSpace(agid.Value) && agid.Exists) || !agid.Exists) identifierList.Add(agid);
+            if ((!string.IsNullOrWhiteSpace(grid.Value) && grid.Exists) || !grid.Exists) identifierList.Add(grid);
+
+            if (book.Identifiers.Any(i => i.Key == "BFID" && !string.IsNullOrWhiteSpace(i.Value))) identifierList.Add(book.Identifiers.First(i => i.Key == "BFID"));
+
+            book.Identifiers = identifierList;
+            
+            await _metadataService.RefreshBookMetadata(book);
+
+            _bookService.SaveBook(book, false);
+
+            await Task.Delay(10000);
         }
         NavManager.NavigateTo("/Books");
 
+    }
+
+    class IDImport
+    {
+        public string ISBN { get; set; }
+        public string ASIN { get; set; }
+        public string GRID { get; set; }
+        public string AGID { get; set; }
+
+        public IDImport(string isbn, string asin, string grid, string agid)
+        {
+            ISBN = isbn;
+            ASIN = asin;
+            GRID = grid;
+            AGID = agid;
+        }
     }
 }
