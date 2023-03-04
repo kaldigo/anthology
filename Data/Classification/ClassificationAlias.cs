@@ -9,5 +9,11 @@ namespace Anthology.Data
         [Key]
         public Guid ID { get; set; } = new Guid();
         public string Name { get; set; }
+        public ClassificationAlias() {}
+
+        public ClassificationAlias(string name)
+        {
+            Name = name;
+        }
     }
 }

@@ -1,0 +1,50 @@
+﻿<MudDialog Class="add-edit-classification-dialog">
+    <DialogContent>
+        <MudTextField @bind-Value="Classification.Name" Label="Name" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+        <MudSelect @bind-Value="Classification.Type" T="Data.Classification.ClassificationType" Label="Type" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter">
+            @foreach (var type in Enum.GetValues(typeof(Anthology.Data.Classification.ClassificationType)).Cast<Anthology.Data.Classification.ClassificationType>())
+            {
+                <MudSelectItem T="Data.Classification.ClassificationType" Value="type">@type.ToString()</MudSelectItem>
+            }
+        </MudSelect>
+        <MudTextField @bind-Value="Aliases" Label="Aliases" Variant="Variant.Outlined" Margin="Margin.Dense"></MudTextField>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Success" OnClick="Save">@(IsNewClassification ? "Add" : "Save") @Classification.Type.ToString()</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public Data.Classification Classification { get; set; }
+
+    [Parameter]
+    public bool IsNewClassification { get; set; }
+
+    string Aliases { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        Aliases = string.Join(", ", Classification.Aliases.Select(a => a.Name));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Save()
+    {
+        var aliases = new List<Data.ClassificationAlias>();
+        if (!string.IsNullOrWhiteSpace(Aliases))
+        {
+            aliases = Aliases.Split(",").Select(a => new Data.ClassificationAlias(a.Trim())).Where(a => !string.IsNullOrWhiteSpace(a.Name)).ToList();
+        }
+        Classification.Aliases = aliases;
+
+        MudDialog.Close(DialogResult.Ok(Classification));
+    }
+
+}

@@ -1,0 +1,42 @@
+﻿<MudGrid Class="ma-0 pa-0" Justify="Justify.SpaceEvenly" Style="width: 100%">
+    @foreach (var classification in Classifications)
+    {
+        <MudItem xs="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h5">@classification.Name</MudText>
+                    @if (IsMetadataClassifications)
+                    {
+                        <MudText Typo="Typo.body1">@classification.Type.ToString()</MudText>
+                    }
+                    <MudText Typo="Typo.body2">@string.Join(", ", classification.Aliases.Select(a => a.Name))</MudText>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => AddEdit.InvokeAsync(classification))">
+                        @(IsMetadataClassifications ? "Add" : "Edit")
+                    </MudButton>
+                    <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="@(() => Merge.InvokeAsync(classification))">
+                        Merge
+                    </MudButton>
+                    @if (!IsMetadataClassifications)
+                    {
+                        <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => Delete.InvokeAsync(classification))">Delete</MudButton>
+                    }
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+    [Parameter]
+    public List<Data.Classification> Classifications { get; set; }
+    [Parameter]
+    public bool IsMetadataClassifications { get; set; }
+    [Parameter]
+    public EventCallback<Data.Classification> AddEdit { get; set; }
+    [Parameter]
+    public EventCallback<Data.Classification> Merge { get; set; }
+    [Parameter]
+    public EventCallback<Data.Classification> Delete { get; set; }
+}

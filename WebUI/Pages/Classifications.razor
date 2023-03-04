@@ -1,0 +1,126 @@
+﻿@page "/Classifications"
+@using Anthology.WebUI.Components.Modals
+@using Anthology.WebUI.Components.Elements
+@using Anthology.Services
+@using Microsoft.AspNetCore.WebUtilities
+@using Anthology.Data
+
+@inject NavigationManager NavManager
+@inject Anthology.Services.IClassificationService _classificationService
+@inject MudBlazor.ISnackbar _snackBar
+@inject MudBlazor.IDialogService _dialog
+
+<PageTitle>Classifications</PageTitle>
+
+@if (ClassificationsList == null)
+{
+    <LoadingIndicator />
+}
+else
+{
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+        @foreach (var type in Enum.GetValues(typeof(Anthology.Data.Classification.ClassificationType)).Cast<Anthology.Data.Classification.ClassificationType>())
+        {
+            <MudTabPanel Text="@(type.ToString() + " (" + ClassificationsList.Where(c => c.Type == type).Count() + ")")">
+                <ClassificationList Classifications="@ClassificationsList.Where(c => c.Type == type).ToList()" IsMetadataClassifications="false" AddEdit="@EditClassification" Merge="@MergeClassification" Delete="@DeleteClassification" />
+            </MudTabPanel>
+        }
+        <MudTabPanel Text="@("Metadata (" + MetadataClassificationsList.Count() + ")")">
+            <ClassificationList Classifications="@MetadataClassificationsList" IsMetadataClassifications="true" AddEdit="@AddClassification" Merge="@MergeMetadataClassification" />
+        </MudTabPanel>
+    </MudTabs>
+}
+
+@code
+{
+    private List<Data.Classification> ClassificationsList { get; set; }
+    private List<Data.Classification> MetadataClassificationsList { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (firstRender)
+        {
+            await LoadData();
+        }
+    }
+
+    async Task LoadData()
+    {
+        ClassificationsList = _classificationService.GetClassifications().OrderBy(c => c.Name).ToList();
+        MetadataClassificationsList = _classificationService.GetAllClassifications().OrderBy(c => c.Name).ToList();
+        MetadataClassificationsList.RemoveAll(m => ClassificationsList.Any(c => c.Name == m.Name));
+        StateHasChanged();
+    }
+
+    async Task AddClassification(Data.Classification classification)
+    {
+        ShowAddEditClassificationDialog(classification, true);
+    }
+
+    async Task EditClassification(Data.Classification classification)
+    {
+        ShowAddEditClassificationDialog(classification, false);
+    }
+
+    async Task ShowAddEditClassificationDialog(Data.Classification classification, bool newClassification)
+    {
+        var parameters = new DialogParameters { ["Classification"] = classification, ["IsNewClassification"] = newClassification };
+        var options = new DialogOptions() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true, CloseButton = true };
+
+        var dialog = await _dialog.ShowAsync<AddEditClassification>((newClassification ? "Add " : "Edit ") + "Classification", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Cancelled)
+        {
+            _classificationService.SaveClassification((Data.Classification)result.Data, newClassification);
+            LoadData();
+        }
+
+    }
+
+    async Task MergeClassification(Data.Classification classification)
+    {
+        ShowMergeClassificationDialog(classification, false);
+    }
+
+    async Task MergeMetadataClassification(Data.Classification classification)
+    {
+        ShowMergeClassificationDialog(classification, true);
+    }
+
+    async Task ShowMergeClassificationDialog(Data.Classification classification, bool newClassification)
+    {
+        var parameters = new DialogParameters { ["ClassificationList"] = ClassificationsList, ["SearchQuery"] = classification.Name };
+        var options = new DialogOptions() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true, CloseButton = true };
+
+        var dialog = await _dialog.ShowAsync<MatchToClassification>("Merge into Classification", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Cancelled)
+        {
+            var aliases = new List<string>() { classification.Name };
+            aliases.AddRange(classification.Aliases.Select(a => a.Name));
+            if (!newClassification) _classificationService.DeleteClassification(classification);
+
+            var destination = (Data.Classification)result.Data;
+            destination.Aliases.AddRange(aliases.Select(a => new ClassificationAlias(){ Name = a}));
+            _classificationService.SaveClassification(destination);
+
+            LoadData();
+        }
+
+    }
+
+    async Task DeleteClassification(Data.Classification classification)
+    {
+        _classificationService.DeleteClassification(classification);
+    }
+}

@@ -1,0 +1,58 @@
+﻿@using Anthology.Plugins.Models
+@using Anthology.WebUI.Components.Elements
+
+<MudDialog Class="match-to-classification-dialog">
+    <DialogContent>
+        <MudTextField Class="mb-5" @bind-Value="SearchQuery" Label="Search" Variant="Variant.Text"></MudTextField>
+        <MudGrid Class="mb-1 overflow-x-auto" Style="max-height: 70vh;">
+            @foreach (var classification in FilteredClassificationList)
+            {
+                <MudCard>
+                    <MudCardContent>
+                        <MudText Typo="Typo.h5">@classification.Name</MudText>
+                            <MudText Typo="Typo.body1">@classification.Type.ToString()</MudText>
+                        <MudText Typo="Typo.body2">@string.Join(", ", classification.Aliases.Select(a => a.Name))</MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => MergeClassification(classification))">Merge</MudButton>
+                    </MudCardActions>
+                </MudCard>
+            }
+        </MudGrid>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public string SearchQuery { get; set; }
+
+    [Parameter]
+    public List<Data.Classification> ClassificationList { get; set; }
+
+    private List<Data.Classification> FilteredClassificationList => FilterClassificationList();
+    
+    async Task MergeClassification(Data.Classification classification)
+    {
+        MudDialog.Close(DialogResult.Ok(classification));
+    }
+
+    bool Search(Data.Classification classification)
+    {
+        var title = classification.Name;
+
+        var compare = classification.Name + (classification.Aliases.Count() != 0 ? " " + string.Join(" ", classification.Aliases) : null);
+
+        if (string.IsNullOrWhiteSpace(SearchQuery)) return true;
+        if (Utils.StringUtils.CompareStrings(SearchQuery, compare)) return true;
+
+        return false;
+    }
+
+    List<Data.Classification> FilterClassificationList()
+    {
+        return ClassificationList.Where(new Func<Data.Classification, bool>(Search)).OrderBy(c => c.Name).ToList();
+    }
+}
