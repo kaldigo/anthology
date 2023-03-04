@@ -9,10 +9,18 @@
 @inject MudBlazor.ISnackbar _snackBar
 @inject MudBlazor.IDialogService _dialog
 
-<PageTitle>Books</PageTitle>
+<PageTitle>Download</PageTitle>
 
-<MudPaper Elevation="25">
+<MudPaper Elevation="25" Class="mb-3">
     <MudToolBar>
+        @if (FilterMissing)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@ToggleFilterMissing">Filter Missing</MudButton>
+        }
+        else
+        {
+            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" OnClick="@ToggleFilterMissing">Filter Missing</MudButton>
+        }
     </MudToolBar>
 </MudPaper>
 @if (DownloadList == null || BookList == null)
@@ -22,7 +30,7 @@
 else
 {
     <MudGrid>
-        @foreach (var downloadItem in DownloadList.Select(d => new DownloadItem(d, BookList)))
+        @foreach (var downloadItem in FilteredDownloadList().Select(d => new DownloadItem(d, BookList)))
         {
             <BookCard T="Plugins.Models.Download" Text1="@downloadItem.Title" Text2="@downloadItem.Author" Text3="@downloadItem.Series" CoverURL="@downloadItem.Cover" ShowStatus="@downloadItem.IsImported" Status="@downloadItem.IsInLibrary" ButtonItem="@downloadItem.Download" ButtonText="Download" ButtonAction="@DownloadBook" SecondButtonText="@downloadItem.SecondButtonText" SecondButtonAction="@ShowMatchToBookDialog" />
         }
@@ -33,6 +41,7 @@ else
 {
     List<Plugins.Models.Download> DownloadList { get; set; }
     List<Data.Book> BookList { get; set; }
+    bool FilterMissing { get; set; }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -50,6 +59,22 @@ else
         DownloadList = await _downloadService.GetDownloadList();
         BookList = await _bookService.GetBooksWithStatusAsync();
         StateHasChanged();
+    }
+
+    List<Plugins.Models.Download> FilteredDownloadList()
+    {
+        return DownloadList.Where(new Func<Plugins.Models.Download, bool>(DownloadListFilter)).ToList();
+    }
+
+    bool DownloadListFilter(Plugins.Models.Download download)
+    {
+        if (FilterMissing)
+        {
+            var book = getLinkedBook(download, BookList);
+            if (book?.ExistsInLibrary ?? false) return false;
+        }
+
+        return true;
     }
 
     static Book? getLinkedBook(Plugins.Models.Download download, List<Data.Book> bookList)
@@ -125,6 +150,11 @@ else
         }
     }
 
+    void ToggleFilterMissing()
+    {
+        FilterMissing = !FilterMissing;
+    }
+
     class DownloadItem
     {
         public Book? Book { get; set; }
@@ -147,7 +177,22 @@ else
             Title = Book != null ? (string.IsNullOrWhiteSpace(Book.Title) ? Book.BookMetadata.Title : Book.Title) : download.Title;
             Author = Book != null ? (Book.Authors.Count == 0 ? string.Join(", ", Book.BookMetadata.Authors) : string.Join(", ", Book.Authors)) : string.Join(", ", download.Author);
             Series = Book != null ? (Book.Series.Count == 0 ? string.Join(", ", Book.BookMetadata.Series.Select(s => s.Name + (string.IsNullOrWhiteSpace(s.VolumeNumber) ? "" : " #" + s.VolumeNumber))) : string.Join(", ", Book.Series.Select(s => s.Series.Name + (string.IsNullOrWhiteSpace(s.Sequence) ? "" : " #" + s.Sequence)))) : null;
-            Cover = Book != null ? (Book.BookCovers.Count == 0 ? Book.BookMetadata.Covers.First() : Book.BookCovers.First().GetUrl()) : download.ImageURL;
+            if (Book != null)
+            {
+                if (Book.BookCovers.Count != 0)
+                {
+                    if (Book.BookCovers.Any(c => c.IsPrimary)) Cover = Book.BookCovers.First(c => c.IsPrimary).GetUrl();
+                    else Cover = Book.BookCovers.First(c => c.IsPrimary).GetUrl();
+                }
+                else
+                {
+                    Cover = Book.BookMetadata.Covers.First();
+                }
+            }
+            else
+            {
+                Cover = download.ImageURL;
+            }
         }
 
     }
