@@ -72,7 +72,7 @@ namespace Anthology.Plugins.LibrarySources
                             Authors = b.media.metadata.authors.Select(a => a.name).ToList(),
                             Narrators = b.media.metadata.narrators,
                             Series = b.media.metadata.series
-                                .Select(s => new MetadataSeries(s.name, s.sequence.ToString())).ToList(),
+                                .Select(s => new MetadataSeries(s.name, s.sequence)).ToList(),
                             Description = b.media.metadata.description,
                             Publisher = b.media.metadata.publisher,
                             Language = b.media.metadata.language,
@@ -207,7 +207,7 @@ namespace Anthology.Plugins.LibrarySources
         {
             public string id;
             public string name;
-            public float? sequence;
+            public string sequence;
         }
         public class AudiobookShelfMetaTags
         {

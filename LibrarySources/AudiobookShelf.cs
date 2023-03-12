@@ -198,7 +198,7 @@ namespace Anthology.Plugins.LibrarySources
         {
             public string id;
             public string name;
-            public float? sequence;
+            public string sequence;
         }
         public class AudiobookShelfMetaTags
         {
