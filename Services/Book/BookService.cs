@@ -30,7 +30,7 @@ namespace Anthology.Services
             if (searchQuery.ContainsKey("isbn") && searchQuery["isbn"].Substring(0, 4) == "ANTH")
             {
                 var book = _context.Books.SingleOrDefault(x => x.ISBN == searchQuery["isbn"]); ;
-                if (book != null) return Task.FromResult(new List<ApiMetadata>(){ _metadataService.GetApiMetadata(book).Result });
+                if (book != null) return Task.FromResult(new List<ApiMetadata>(){ _metadataService.GetApiMetadata(book, searchQuery["host"]).Result });
             }
 
             var books = _context.Books.ToList();
@@ -44,7 +44,7 @@ namespace Anthology.Services
                             ? string.Join(", ", b.BookMetadata.Authors)
                             : string.Join(", ", b.Authors.Select(a => a.Name)))).ToList();
 
-            var searchResults = books.Select(b => _metadataService.GetApiMetadata(b).Result).ToList();
+            var searchResults = books.Select(b => _metadataService.GetApiMetadata(b, searchQuery["host"]).Result).ToList();
             _context.SaveChanges();
             return Task.FromResult(searchResults);
         }

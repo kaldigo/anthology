@@ -24,6 +24,7 @@ namespace Anthology.Api
             if (title != null) parameters.Add("title", title);
             if (author != null) parameters.Add("author", author);
             if (isbn != null) parameters.Add("isbn", isbn);
+            parameters.Add("host", this.Request.Scheme + "://" + this.Request.Host);
             return _bookService.Search(parameters).Result;
         }
     }
