@@ -9,6 +9,7 @@ namespace Anthology.Services
         Classification GetClassification(Guid guid);
         Classification? GetClassification(string name);
         List<Classification> GetClassifications();
+        void RefreshMetadataClassifications();
         List<Classification> GetAllClassifications(Metadata metadata = null);
         void SaveClassification(Classification classification, bool newClassification = false);
         List<Classification> CleanClassification(List<Classification> classifications);

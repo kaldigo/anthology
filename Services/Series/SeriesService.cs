@@ -12,6 +12,9 @@ namespace Anthology.Services
     {
         DatabaseContext _context;
         IClassificationService _classificationService;
+        private static List<Series> _metadataSeriesCache;
+        private static Task _refreshMetadataSeriesTask;
+        private static bool _isCached;
 
         public SeriesService(DatabaseContext context, IClassificationService classificationService)
         {
@@ -23,19 +26,55 @@ namespace Anthology.Services
         {
             return _context.Series.ToList();
         }
+        private static Task<string> RefreshMetadataSeriesTask(DatabaseContext context)
+        {
+            if (!(_refreshMetadataSeriesTask != null && (_refreshMetadataSeriesTask.Status == TaskStatus.Running || _refreshMetadataSeriesTask.Status == TaskStatus.WaitingToRun || _refreshMetadataSeriesTask.Status == TaskStatus.WaitingForActivation)))
+            {
+                _refreshMetadataSeriesTask = Task.Factory.StartNew(() =>
+                {
+                    using (HttpClient client = new HttpClient())
+                    {
+                        var seriesList = context.Series.ToList();
+                        var bookMetadata = context.Books.Select(b => b.BookMetadata).ToList();
+                        var metadataSeriesList = bookMetadata.SelectMany(b => b.Series).Select(m => new Series() { Name = m.Name }).ToList();
+
+                        var cleanedMetadataSeriesList = new List<Series>();
+                        foreach (var metadataSeries in metadataSeriesList)
+                        {
+                            var series = seriesList.FirstOrDefault(s =>
+                                s.Name == metadataSeries.Name || s.Aliases.Any(a => a.Name == metadataSeries.Name));
+                            if (series == null) cleanedMetadataSeriesList.Add(metadataSeries);
+                        }
+
+                        _metadataSeriesCache = cleanedMetadataSeriesList;
+                        _isCached = true;
+                    }
+                });
+            }
+            _refreshMetadataSeriesTask.Wait();
+            return Task.FromResult("Refresh complete");
+        }
+
+        public void RefreshMetadataSeries()
+        {
+            RefreshMetadataSeriesTask(_context);
+        }
 
         public List<Series> GetAllSeries(Metadata metadata = null)
         {
+            if(_isCached == false) RefreshMetadataSeries();
             var seriesList = _context.Series.ToList();
-            var bookMetadata = _context.Books.Select(b => b.BookMetadata).ToList();
-            if(metadata != null) bookMetadata.Add(metadata);
-            var metadataSeriesList = bookMetadata.SelectMany(b => b.Series).ToList();
-            foreach (var metadataSeries in metadataSeriesList)
+            seriesList = seriesList.Concat(_metadataSeriesCache).ToList();
+            if (metadata != null)
             {
-                var series = seriesList.FirstOrDefault(s =>
-                    s.Name == metadataSeries.Name || s.Aliases.Any(a => a.Name == metadataSeries.Name));
-                if (series == null) seriesList.Add(new Series() { Name = metadataSeries.Name });
+                foreach (var metadataSeries in metadata.Series)
+                {
+                    var series = seriesList.FirstOrDefault(s =>
+                        s.Name == metadataSeries.Name || s.Aliases.Any(a => a.Name == metadataSeries.Name));
+                    if (series == null) seriesList.Add(new Series() { Name = metadataSeries.Name });
+                }
             }
+
             return seriesList;
         }
 

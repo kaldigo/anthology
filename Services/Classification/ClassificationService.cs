@@ -11,29 +11,71 @@ namespace Anthology.Services
     public class ClassificationService : IClassificationService
     {
         DatabaseContext _context;
+        private static List<Classification> _metadataClassificationsCache;
+        private static Task _refreshMetadataClassificationsTask;
+        private static bool _isCached;
 
         public ClassificationService(DatabaseContext context)
         {
             _context = context;
+            _isCached = false;
+            _metadataClassificationsCache = new List<Classification>();
         }
 
         public List<Classification> GetClassifications()
         {
             return _context.Classifications.ToList();
         }
+        private static Task<string> RefreshMetadataClassificationsTask(DatabaseContext context, ClassificationService instance)
+        {
+            if (!(_refreshMetadataClassificationsTask != null && (_refreshMetadataClassificationsTask.Status == TaskStatus.Running || _refreshMetadataClassificationsTask.Status == TaskStatus.WaitingToRun || _refreshMetadataClassificationsTask.Status == TaskStatus.WaitingForActivation)))
+            {
+                _refreshMetadataClassificationsTask = Task.Factory.StartNew(() =>
+                {
+                    using (HttpClient client = new HttpClient())
+                    {
+                        var bookMetadata = context.Books.Select(b => b.BookMetadata).ToList();
+                        var metadataGenresStrings = bookMetadata.SelectMany(b => b.Genres).ToList();
+                        var metadataGenres = metadataGenresStrings.Select(g => new Classification()
+                        { Name = g, Type = Classification.ClassificationType.Genre });
+
+                        var metadataTagsStrings = bookMetadata.SelectMany(b => b.Tags).ToList();
+                        var metadataTags = metadataTagsStrings.Select(t => new Classification()
+                        { Name = t, Type = Classification.ClassificationType.Tag });
+
+                        var metadataClassifications = instance.CleanClassification(metadataGenres.Concat(metadataTags).ToList());
+
+                        _metadataClassificationsCache = metadataClassifications;
+                        _isCached = true;
+                    }
+                });
+            }
+            _refreshMetadataClassificationsTask.Wait();
+            return Task.FromResult("Refresh complete");
+        }
+
+        public void RefreshMetadataClassifications()
+        {
+            RefreshMetadataClassificationsTask(_context, this);
+        }
         public List<Classification> GetAllClassifications(Metadata metadata = null)
         {
-            var bookMetadata = _context.Books.Select(b => b.BookMetadata).ToList();
-            if(metadata != null) bookMetadata.Add(metadata);
-            var metadataGenresStrings = bookMetadata.SelectMany(b => b.Genres).ToList();
-            var metadataGenres = metadataGenresStrings.Select(g => new Classification()
+            if (_isCached == false) RefreshMetadataClassifications();
+            List<Classification> metadataClassifications;
+            if (metadata != null)
+            {
+                var metadataGenres = metadata.Genres.Select(g => new Classification()
                 { Name = g, Type = Classification.ClassificationType.Genre });
-
-            var metadataTagsStrings = bookMetadata.SelectMany(b => b.Tags).ToList();
-            var metadataTags = metadataTagsStrings.Select(t => new Classification()
+                
+                var metadataTags = metadata.Tags.Select(t => new Classification()
                 { Name = t, Type = Classification.ClassificationType.Tag });
 
-            var metadataClassifications = CleanClassification(metadataGenres.Concat(metadataTags).ToList());
+                metadataClassifications = CleanClassification(metadataGenres.Concat(metadataTags).Concat(_metadataClassificationsCache).ToList());
+            }
+            else
+            {
+                metadataClassifications = _metadataClassificationsCache;
+            }
 
             var dbClassifications = _context.Classifications.ToList();
             var allClassifications = dbClassifications.Concat(metadataClassifications).DistinctBy(c => c.Name)

@@ -6,6 +6,7 @@ namespace Anthology.Services
     public interface ISeriesService
     {
         List<Series> GetSeries();
+        void RefreshMetadataSeries();
         List<Series> GetAllSeries(Metadata metadata = null);
         Series GetSeries(Guid guid);
         Series? GetSeries(string name);

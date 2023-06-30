@@ -18,16 +18,18 @@ namespace Anthology.Services
         ISettingsService _settingsService;
         IClassificationService _classificationService;
         ISeriesService _seriesService;
+        IPersonService _personService;
 
-        public MetadataService(IPluginsService pluginsService, ISettingsService settingsService, IClassificationService classificationService, ISeriesService seriesService)
+        public MetadataService(IPluginsService pluginsService, ISettingsService settingsService, IClassificationService classificationService, ISeriesService seriesService, IPersonService personService)
         {
             _pluginsService = pluginsService;
             _settingsService = settingsService;
             _classificationService = classificationService;
             _seriesService = seriesService;
+            _personService = personService;
         }
 
-        public Task<ApiMetadata> GetApiMetadata(Book book)
+        public Task<ApiMetadata> GetApiMetadata(Book book, string host)
         {
             ApiMetadata mergedMetadata = new ApiMetadata(GetMetadata(book, false).Result);
             mergedMetadata.ISBN = book.ISBN;
@@ -35,6 +37,8 @@ namespace Anthology.Services
             {
                 mergedMetadata.Identifiers.Add(identifier.Key.ToLower(), identifier.Value);
             }
+
+            mergedMetadata.Covers = mergedMetadata.Covers.Select(c => host + c).ToList();
 
             return Task.FromResult(mergedMetadata);
         }
@@ -98,6 +102,9 @@ namespace Anthology.Services
             }
 
             book.BookMetadata = MergeMetadata(dataToMerge);
+            _classificationService.RefreshMetadataClassifications();
+            _seriesService.RefreshMetadataSeries();
+            _personService.RefreshMetadataPeople();
             return Task.CompletedTask;
         }
 

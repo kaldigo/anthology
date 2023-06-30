@@ -12,7 +12,7 @@ namespace Anthology.Services
 {
     public interface IMetadataService
     {
-        Task<ApiMetadata> GetApiMetadata(Book book);
+        Task<ApiMetadata> GetApiMetadata(Book book, string host);
         Task<List<MetadataSearchResult>> SearchMetadata(Plugin plugin, string title, string author);
         Task<Metadata> GetMetadata(Book book, bool forceRefresh = false);
         Task RefreshBookMetadata(Book dbBook);

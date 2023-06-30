@@ -24,11 +24,7 @@ namespace Anthology.Plugins.LibrarySources
 
         private static Task<string> GetBookList(Dictionary<string, string> settings)
         {
-            if (_task != null && (_task.Status == TaskStatus.Running || _task.Status == TaskStatus.WaitingToRun || _task.Status == TaskStatus.WaitingForActivation))
-            {
-                return Task.FromResult("Import already running");
-            }
-            else
+            if (!(_task != null && (_task.Status == TaskStatus.Running || _task.Status == TaskStatus.WaitingToRun || _task.Status == TaskStatus.WaitingForActivation)))
             {
                 _task = Task.Factory.StartNew(() =>
                 {
@@ -48,25 +44,28 @@ namespace Anthology.Plugins.LibrarySources
                         }
                     }
                 });
-
-                _task.Wait();
-
-                return Task.FromResult("Import complete");
             }
+            _task.Wait();
+            return Task.FromResult("Import complete");
+        }
+
+        private List<AudiobookShelfResult> GetLibraryImport(Dictionary<string, string> settings)
+        {
+            if (_lastUpdated == null || _lastUpdated.AddMinutes(1) < DateTime.Now) GetBookList(settings);
+            if (_bookList == null) return null;
+            return _bookList;
         }
 
         public AudiobookShelfResult GetBookDetails(string isbn, Dictionary<string, string> settings)
         {
-            if (_lastUpdated == null || _lastUpdated.AddMinutes(1) < DateTime.Now) GetBookList(settings);
-            if (_bookList == null) return null;
-            return _bookList.FirstOrDefault(b => b.media.metadata.isbn == isbn);
+            var boolList = GetLibraryImport(settings);
+            return boolList == null ? null : boolList.FirstOrDefault(b => b.media.metadata.isbn == isbn);
         }
 
         public List<string> GetLibraryItemList(Dictionary<string, string> settings)
         {
-            if (_lastUpdated == null || _lastUpdated.AddMinutes(1) < DateTime.Now) GetBookList(settings);
-            if (_bookList == null) return null;
-            return _bookList.Select(b => b.media.metadata.isbn).Where(i => !string.IsNullOrWhiteSpace(i)).ToList();
+            var boolList = GetLibraryImport(settings);
+            return boolList == null ? null : boolList.Select(b => b.media.metadata.isbn).Where(i => !string.IsNullOrWhiteSpace(i)).ToList();
         }
 
         public bool IsBookInLibrary(string isbn, Dictionary<string, string> settings)
