@@ -46,6 +46,7 @@ namespace Anthology.Services
 
             var searchResults = books.Select(b => _metadataService.GetApiMetadata(b, searchQuery["host"]).Result).ToList();
             _context.SaveChanges();
+            if (_metadataService.IsPendingRefresh()) _metadataService.RefreshMetadataCache();
             return Task.FromResult(searchResults);
         }
 
@@ -83,7 +84,7 @@ namespace Anthology.Services
             return book;
         }
 
-        public void SaveBook(Book book, bool updateMetadata = false)
+        public void SaveBook(Book book, bool updateMetadata = false, bool metadataRefreshed = false)
         {
             var metadataIdentifiers = _pluginsService.GetPluginList().Where(p => p.Type == Plugin.PluginType.Metadata)
                 .Select(p => p.Identifier);
@@ -106,6 +107,10 @@ namespace Anthology.Services
             {
                 _metadataService.RefreshBookMetadata(book);
                 _context.SaveChanges();
+            }
+            if (metadataRefreshed)
+            {
+                _metadataService.RefreshMetadataCache();
             }
         }
 

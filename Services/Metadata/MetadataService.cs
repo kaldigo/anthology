@@ -19,6 +19,7 @@ namespace Anthology.Services
         IClassificationService _classificationService;
         ISeriesService _seriesService;
         IPersonService _personService;
+        private bool _isPendingRefresh;
 
         public MetadataService(IPluginsService pluginsService, ISettingsService settingsService, IClassificationService classificationService, ISeriesService seriesService, IPersonService personService)
         {
@@ -27,8 +28,13 @@ namespace Anthology.Services
             _classificationService = classificationService;
             _seriesService = seriesService;
             _personService = personService;
+            _isPendingRefresh = false;
         }
 
+        public bool IsPendingRefresh()
+        {
+            return this._isPendingRefresh;
+        }
         public Task<ApiMetadata> GetApiMetadata(Book book, string host)
         {
             ApiMetadata mergedMetadata = new ApiMetadata(GetMetadata(book, false).Result);
@@ -56,7 +62,10 @@ namespace Anthology.Services
         public Task<Metadata> GetMetadata(Book book, bool forceRefresh = false)
         {
             if (book.DateFetchedMetadata == null || book.DateFetchedMetadata > DateTime.Now.AddDays(30) || forceRefresh)
+            {
                 RefreshBookMetadata(book);
+                this._isPendingRefresh = true;
+            }
 
             Dictionary<string, Metadata> dataToMerge = new Dictionary<string, Metadata>();
             dataToMerge.Add("Override", ConvertBookToMetadata(book));
@@ -85,6 +94,15 @@ namespace Anthology.Services
             return Task.FromResult(mergedMetadata);
         }
 
+        public Task RefreshMetadataCache()
+        {
+            _classificationService.RefreshMetadataClassifications();
+            _seriesService.RefreshMetadataSeries();
+            _personService.RefreshMetadataPeople();
+            this._isPendingRefresh = false;
+            return Task.CompletedTask;
+        }
+
         public Task RefreshBookMetadata(Book book)
         {
             Dictionary<string, Metadata> dataToMerge = new Dictionary<string, Metadata>();
@@ -102,9 +120,6 @@ namespace Anthology.Services
             }
 
             book.BookMetadata = MergeMetadata(dataToMerge);
-            _classificationService.RefreshMetadataClassifications();
-            _seriesService.RefreshMetadataSeries();
-            _personService.RefreshMetadataPeople();
             return Task.CompletedTask;
         }
 

@@ -92,6 +92,8 @@ else
     List<Data.TempImage> NewBookImages { get; set; } = new();
     List<string> ImagesToDelete { get; set; } = new();
 
+    bool RefreshedMetadata { get; set; } = false;
+
     protected override async Task OnInitializedAsync()
     {
         await base.OnInitializedAsync();
@@ -125,6 +127,7 @@ else
         StateHasChanged();
 
         _metadataService.RefreshBookMetadata(BookEdited);
+        RefreshedMetadata = true;
         LoadData();
     }
 
@@ -153,7 +156,7 @@ else
 
         Book.Update(BookEdited);
 
-        BookService.SaveBook(Book, IdentifiersChanged);
+        BookService.SaveBook(Book, IdentifiersChanged, IdentifiersChanged || RefreshedMetadata);
         _snackBar.Add("Book Saved", Severity.Success);
 
         if (IsNewBook) MudDialog.Close(DialogResult.Ok("Added"));
