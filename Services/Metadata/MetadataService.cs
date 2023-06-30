@@ -44,7 +44,7 @@ namespace Anthology.Services
                 mergedMetadata.Identifiers.Add(identifier.Key.ToLower(), identifier.Value);
             }
 
-            mergedMetadata.Covers = mergedMetadata.Covers.Select(c => host + c).ToList();
+            mergedMetadata.Covers = mergedMetadata.Covers.Select(c => c.StartsWith("/Images/") ? host + c : c).ToList();
 
             return Task.FromResult(mergedMetadata);
         }
