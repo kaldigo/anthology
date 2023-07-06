@@ -46,7 +46,7 @@ namespace Anthology.Services
                             if (series == null) cleanedMetadataSeriesList.Add(metadataSeries);
                         }
 
-                        _metadataSeriesCache = cleanedMetadataSeriesList;
+                        _metadataSeriesCache = cleanedMetadataSeriesList.DistinctBy(s => s.Name).ToList();
                         _isCached = true;
                     }
                 });
