@@ -6,7 +6,7 @@
         <MudGrid>
             <MudItem xs="8">
                 <MudAutocomplete T="string" @ref="_autocomplete" @bind-Value="Series" SearchFunc="@Search" Adornment="Adornment.None"
-                                 CoerceValue="true" Immediate="true" SelectValueOnTab="true" ResetValueOnEmptyText="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 CoerceText="false" CoerceValue="true" Immediate="true" SelectValueOnTab="true" ResetValueOnEmptyText="true" Variant="Variant.Outlined" Margin="Margin.Dense"
                                   OnKeyUp="AddNewOption" />
             </MudItem>
             <MudItem xs="4">

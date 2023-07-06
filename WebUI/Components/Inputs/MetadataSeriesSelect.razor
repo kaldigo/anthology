@@ -69,7 +69,7 @@
     [Parameter]
     public List<BookSeries> SelectValue
     {
-        get => _selectValue.Count == 0 ? MetadataValue : _selectValue;
+        get => _selectValue.Count == 0 ? MetadataValue.OrderByDescending(s => s.Series.Name).ToList() : _selectValue.OrderByDescending(s => s.Series.Name).ToList();
         set
         {
             if (Equals(_selectValue, value) || ((_selectValue != null && _selectValue.Count == 0) && value.Count == 0)) return;
@@ -105,23 +105,20 @@
             }
             var sequence = ((BookSeries)(result.Data)).Sequence;
 
-            var option = _selectValue.FirstOrDefault(b => b.Series.Name == series.Name);
-            if (option == null)
+            var newSelectValue = SelectValue.ToList();
+            if (bookSeries != null)
             {
-                option = new BookSeries(series, sequence);
-                SelectValue = SelectValue.Concat(new List<BookSeries>() { option }).ToList();
+                newSelectValue = SelectValue.Where(s => s.Series.Name != ((BookSeries)result.Data).Series.Name && s.Sequence != ((BookSeries)result.Data).Sequence).ToList();
+
             }
-            else
-            {
-                option.Sequence = sequence;
-                SelectValue = SelectValue;
-            }
+            var option = new BookSeries(series, sequence);
+            SelectValue = newSelectValue.Concat(new List<BookSeries>() { option }).ToList();
         }
     }
 
     void RemoveSelectedOption(MudChip chip)
     {
-        SelectValue.Remove((BookSeries)chip.Value);
+        SelectValue = SelectValue.Where(s => s.Series.Name != ((BookSeries)chip.Value).Series.Name && s.Sequence != ((BookSeries)chip.Value).Sequence).ToList();
     }
 
 }
