@@ -25,8 +25,8 @@ namespace Anthology.Data
         {
             get
             {
-                var genres = Books.SelectMany(b => b.BookMetadata.Genres).GroupBy(c => c).Where(c => c.Count() > 1).Select(c => new Classification() { Name = c.Key, Type = Classification.ClassificationType.Genre });
-                var tags = Books.SelectMany(b => b.BookMetadata.Tags).GroupBy(c => c).Where(c => c.Count() > 1).Select(c => new Classification() { Name = c.Key, Type = Classification.ClassificationType.Tag });
+                var genres = Books.Where(b => b != null).SelectMany(b => b.BookMetadata.Genres).GroupBy(c => c).Where(c => c.Count() > 1).Select(c => new Classification() { Name = c.Key, Type = Classification.ClassificationType.Genre });
+                var tags = Books.Where(b => b != null).SelectMany(b => b.BookMetadata.Tags).GroupBy(c => c).Where(c => c.Count() > 1).Select(c => new Classification() { Name = c.Key, Type = Classification.ClassificationType.Tag });
                 return genres.Union(tags).ToList();
             }
         }
