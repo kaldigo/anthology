@@ -30,7 +30,7 @@ namespace Anthology.Plugins.LibrarySources
                 {
                     using (HttpClient client = new HttpClient())
                     {
-                        var url = settings["Url"] + "/api/libraries/" + settings["LibraryID"] + "/items";
+                        var url = settings["Url"] + "/api/libraries/" + settings["LibraryID"] + "/items?limit=-1";
                         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", settings["Bearer"]);
                         var response = client.GetStringAsync(url).Result;
                         if (response != null)
