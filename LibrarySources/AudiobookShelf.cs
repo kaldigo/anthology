@@ -76,141 +76,81 @@ namespace Anthology.Plugins.LibrarySources
         }
 
         #region Import Model
-        public class AudiobookShelfItems
-        {
-            public List<AudiobookShelfResult> results;
-            public int total;
-            public int limit;
-            public int page;
-            public bool sortDesc;
-            public string mediaType;
-            public bool minified;
-            public bool collapseseries;
-        }
-        public class AudiobookShelfResult
-        {
-            public string id;
-            public string ino;
-            public string libraryId;
-            public string folderId;
-            public string path;
-            public string relPath;
-            public bool isFile;
-            public object mtimeMs;
-            public object ctimeMs;
-            public int birthtimeMs;
-            public object addedAt;
-            public object updatedAt;
-            public object lastScan;
-            public string scanVersion;
-            public bool isMissing;
-            public bool isInvalid;
-            public string mediaType;
-            public AudiobookShelfMedia media;
-            public List<AudiobookShelfLibraryFile> libraryFiles;
-        }
         public class AudiobookShelfMedia
         {
-            public string libraryItemId;
-            public AudiobookShelfMetadata metadata;
-            public string coverPath;
-            public List<string> tags;
-            public List<AudiobookShelfAudioFile> audioFiles;
-            public List<AudiobookShelfChapter> chapters;
-            public List<object> missingParts;
-            public object ebookFile;
+            public string id { get; set; }
+            public AudiobookShelfMetadata metadata { get; set; }
+            public string coverPath { get; set; }
+            public List<string> tags { get; set; }
+            public int numTracks { get; set; }
+            public int numAudioFiles { get; set; }
+            public int numChapters { get; set; }
+            public int numMissingParts { get; set; }
+            public int numInvalidAudioFiles { get; set; }
+            public double duration { get; set; }
+            public int size { get; set; }
+            public object ebookFormat { get; set; }
         }
-        public class AudiobookShelfLibraryFile
-        {
-            public string ino;
-            public AudiobookShelfMetadata metadata;
-            public object addedAt;
-            public object updatedAt;
-            public string fileType;
-        }
+
         public class AudiobookShelfMetadata
         {
-            public string title;
-            public string subtitle;
-            public List<AudiobookShelfAuthor> authors;
-            public List<string> narrators;
-            public List<AudiobookShelfSeries> series;
-            public List<string> genres;
-            public string publishedYear;
-            public object publishedDate;
-            public string publisher;
-            public string description;
-            public string isbn;
-            public string asin;
-            public string language;
-            public bool @explicit;
-            public string filename;
-            public string ext;
-            public string path;
-            public string relPath;
-            public int size;
-            public object mtimeMs;
-            public object ctimeMs;
-            public int birthtimeMs;
+            public string title { get; set; }
+            public string titleIgnorePrefix { get; set; }
+            public string subtitle { get; set; }
+            public string authorName { get; set; }
+            public string authorNameLF { get; set; }
+            public string narratorName { get; set; }
+            public string seriesName { get; set; }
+            public List<string> genres { get; set; }
+            public string publishedYear { get; set; }
+            public object publishedDate { get; set; }
+            public string publisher { get; set; }
+            public string description { get; set; }
+            public string isbn { get; set; }
+            public string asin { get; set; }
+            public string language { get; set; }
+            public bool @explicit { get; set; }
+            public bool abridged { get; set; }
         }
-        public class AudiobookShelfAudioFile
+
+        public class AudiobookShelfResult
         {
-            public int index;
-            public string ino;
-            public AudiobookShelfMetadata metadata;
-            public object addedAt;
-            public object updatedAt;
-            public int? trackNumFromMeta;
-            public object discNumFromMeta;
-            public int? trackNumFromFilename;
-            public object discNumFromFilename;
-            public bool manuallyVerified;
-            public bool invalid;
-            public bool exclude;
-            public object error;
-            public string format;
-            public double duration;
-            public int bitRate;
-            public string language;
-            public string codec;
-            public string timeBase;
-            public int channels;
-            public string channelLayout;
-            public List<AudiobookShelfChapter> chapters;
-            public string embeddedCoverArt;
-            public AudiobookShelfMetaTags metaTags;
-            public string mimeType;
+            public string id { get; set; }
+            public string ino { get; set; }
+            public string oldLibraryItemId { get; set; }
+            public string libraryId { get; set; }
+            public string folderId { get; set; }
+            public string path { get; set; }
+            public string relPath { get; set; }
+            public bool isFile { get; set; }
+            public object mtimeMs { get; set; }
+            public object ctimeMs { get; set; }
+            public int birthtimeMs { get; set; }
+            public object addedAt { get; set; }
+            public object updatedAt { get; set; }
+            public bool isMissing { get; set; }
+            public bool isInvalid { get; set; }
+            public string mediaType { get; set; }
+            public AudiobookShelfMedia media { get; set; }
+            public int numFiles { get; set; }
+            public int size { get; set; }
         }
-        public class AudiobookShelfChapter
+
+        public class AudiobookShelfItems
         {
-            public int id;
-            public double start;
-            public double end;
-            public string title;
+            public List<AudiobookShelfResult> results { get; set; }
+            public int total { get; set; }
+            public int limit { get; set; }
+            public int page { get; set; }
+            public bool sortDesc { get; set; }
+            public string mediaType { get; set; }
+            public bool minified { get; set; }
+            public bool collapseseries { get; set; }
+            public string include { get; set; }
+            public int offset { get; set; }
         }
-        public class AudiobookShelfAuthor
-        {
-            public string id;
-            public string name;
-        }
-        public class AudiobookShelfSeries
-        {
-            public string id;
-            public string name;
-            public string sequence;
-        }
-        public class AudiobookShelfMetaTags
-        {
-            public string tagAlbum;
-            public string tagArtist;
-            public string tagTitle;
-            public string tagTrack;
-            public string tagAlbumArtist;
-            public string tagDate;
-            public string tagComment;
-            public string tagEncoder;
-            public string tagGenre;
-        }
+
+
         #endregion
     }
 }
