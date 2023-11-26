@@ -22,13 +22,13 @@ namespace Anthology.Plugins.MetadataSources
 
         public string IdentifierKey => "GRID";
 
-        public List<string> Settings => new List<string>() {};
+        public List<string> Settings => new List<string>() { };
 
         public Metadata GetMetadata(string identifier, Dictionary<string, string> settings)
         {
             try
             {
-                return PollBook(identifier);
+                return GetBookMetadata(identifier);
             }
             catch (Exception ex)
             {
@@ -42,22 +42,62 @@ namespace Anthology.Plugins.MetadataSources
             {
                 using (HttpClient client = new HttpClient())
                 {
-                    var url = "https://www.goodreads.com/book/auto_complete?format=json&q=" + title;
+                    var url = "https://www.goodreads.com/search?q=" + title;
                     if (author != null) url = url + " " + author;
 
-                    var request = new HttpRequestMessage(HttpMethod.Get, url);
-                    request.Headers.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36");
+                    var request = new HttpRequestMessage(HttpMethod.Post, "https://biblioreads.kaldigo.co.uk/api/search/books");
+                    var content = new StringContent("{\"queryURL\":\"" + url + "\"}", null, "application/json");
+                    request.Content = content;
 
-                    var response = client.SendAsync(request).Result;
-                    if (response != null)
+                    var response = client.Send(request);
+
+
+                    if (response.StatusCode == HttpStatusCode.NotFound)
                     {
-                        var jsonString = JsonConvert.DeserializeObject<List<SearchJsonResource>>(response.Content.ReadAsStringAsync().Result);
-                        return jsonString.Select(r => new MetadataSearchResult(){Key = IdentifierKey, Identifier = r.WorkId.ToString(), Metadata = PollBook(r.WorkId.ToString())}).ToList();
+                        throw new Exception("Book Not Found: " + url);
                     }
-                    else
+
+                    if (!response.IsSuccessStatusCode)
                     {
-                        return null;
+                        if (response.StatusCode == HttpStatusCode.BadRequest)
+                        {
+                            throw new Exception("Bad Request: " + url);
+                        }
+                        else
+                        {
+                            throw new Exception("Unexpected response fetching book data");
+                        }
                     }
+
+                    var search = JsonConvert.DeserializeObject<GoodreadsSearch>(response.Content.ReadAsStringAsync().Result);
+
+                    var results = search.result.Select(r =>
+                    {
+                        var book = GetBook(r.bookURL);
+                        var metadata = new Metadata();
+
+                        metadata.Title = book.title;
+                        metadata.Authors.AddRange(book.author.Where(a => !a.name.Contains("Narrator") && !a.name.Contains("Illustrator") && !a.name.Contains("Editor") && !a.name.Contains("Transilator")).Select(a => a.name.Trim()));
+                        if (!String.IsNullOrEmpty(book.series)) metadata.Series.Add(ParseSeries(book.series));
+                        metadata.Description = book.desc;
+                        metadata.PublishDate = ParseDate(book.publishDate.Replace("\\n", "").Trim(), book.publishDate.Replace("\\n", "").Trim());
+                        metadata.Publisher = ParsePublisher(book.publishDate.Replace("\\n", "").Trim(), book.publishDate.Replace("\\n", "").Trim());
+                        metadata.Genres.AddRange(book.genres.Where(g => !String.IsNullOrEmpty(g) && !metadata.Genres.Any(mg => mg == g)));
+                        metadata.IsExplicit = metadata.Genres.Any(g => g.ToLower() is "adult" or "erotic" or "erotica");
+                        metadata.Covers.Add(book.cover);
+
+                        var identifierRegex = new Regex(@"(?<identifier>\d+)$");
+                        var identifierMatch = identifierRegex.Match(book.quotesURL);
+
+                        return new MetadataSearchResult()
+                        {
+                            Key = IdentifierKey,
+                            Identifier = identifierMatch.Groups["identifier"].Value.Trim(),
+                            Metadata = metadata
+                        };
+                    }).ToList();
+
+                    return results;
                 }
             }
             catch (Exception ex)
@@ -66,318 +106,309 @@ namespace Anthology.Plugins.MetadataSources
             }
         }
 
-        private Metadata MapMetadata(WorkResource book)
+        private Metadata GetBookMetadata(string identifier)
         {
+            var work = GetWork(identifier);
+
             var metadata = new Metadata();
-            var editionsByPopularity = book.Books.OrderByDescending(e => (double)((decimal)e.AverageRating * e.RatingCount));
-            var mostPopularEdition = editionsByPopularity.FirstOrDefault();
-            metadata.Title = mostPopularEdition.Title;
-            metadata.Authors = book.Authors.Where(a => mostPopularEdition.Contributors.Where(c => c.Role == "Author").Select(c => c.ForeignId).Contains(a.ForeignId)).Select(a => a.Name).ToList();
 
-            if (book.Series != null && book.Series.Count != 0 )
+            foreach (var edition in work.editions)
             {
-                metadata.Series = book.Series.Select(s =>
-                {
-                    var title = s.Title;
-                    var linkItems = s.LinkItems.Where(i => i.ForeignWorkId == book.ForeignId);
-                    var linkItem = linkItems.Any(l => l.Primary) ? linkItems.First(l => l.Primary) : linkItems.First();
-                    var position = "";
-                    if (linkItem != null) position = linkItem.PositionInSeries;
-                    return new Metadata.MetadataSeries(title, position);
-                }).ToList();
+                var book = GetBook(edition.url);
+
+                if (metadata.Title == null) metadata.Title = book.title;
+                if (metadata.Authors.Count() == 0) metadata.Authors.AddRange(book.author.Where(a => !a.name.Contains("Narrator") && !a.name.Contains("Illustrator") && !a.name.Contains("Editor") && !a.name.Contains("Transilator")).Select(a => a.name.Trim()));
+                if (metadata.Series.Count() == 0 && !String.IsNullOrEmpty(book.series)) metadata.Series.Add(ParseSeries(book.series));
+                if (metadata.Description == null) metadata.Description = book.desc;
+                if (!metadata.PublishDate.HasValue) metadata.PublishDate = ParseDate(work.firstPublished.Replace("\\n", "").Trim(), work.publishDate.Replace("\\n", "").Trim());
+                if (metadata.Publisher == null) metadata.Publisher = ParsePublisher(work.firstPublished.Replace("\\n", "").Trim(), work.publishDate.Replace("\\n", "").Trim());
+                metadata.Genres.AddRange(book.genres.Where(g => !String.IsNullOrEmpty(g) && !metadata.Genres.Any(mg => mg == g)));
+                if (metadata.Language == null) metadata.Language = ParseLanguage(edition.editionLanguage.Replace("\\n", ""));
+                metadata.IsExplicit = metadata.Genres.Any(g => g.ToLower() is "adult" or "erotic" or "erotica");
+                if (book.cover != null) metadata.Covers.Add(book.cover);
             }
-
-            metadata.Description = mostPopularEdition.Description;
-            metadata.Publisher = mostPopularEdition.Publisher;
-            metadata.PublishDate = mostPopularEdition.ReleaseDate;
-            metadata.Genres = book.Genres;
-            metadata.Covers = editionsByPopularity.Select(e => e.ImageUrl).Take(10).ToList();
-
-            if (!string.IsNullOrWhiteSpace(mostPopularEdition.Language))
-            {
-                switch (mostPopularEdition.Language.ToLower().Trim())
-                {
-                    case "en-us":
-                    case "en-gb":
-                    case "eng":
-                    case "english":
-                        metadata.Language = "English";
-                        break;
-                    default:
-                        metadata.Language = mostPopularEdition.Language;
-                        break;
-                }
-            }
-
-            metadata.IsExplicit = book.Genres.Any(g => g is "adult" or "erotic" or "erotica");
 
             return metadata;
         }
 
-        private Metadata PollBook(string foreignBookId)
+        private Work GetWork(string identifier)
         {
-            WorkResource resource = null;
+            var client = new HttpClient();
+            var request = new HttpRequestMessage(HttpMethod.Post, "https://biblioreads.kaldigo.co.uk/api/works/editions");
+            var content = new StringContent("{\"queryURL\":\"http://www.goodreads.com/work/editions/" + identifier + "\"}", null, "application/json");
+            request.Content = content;
 
-            HttpClient httpClient = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
+            var response = client.Send(request);
 
-            for (var i = 0; i < 60; i++)
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                var url = "https://api.bookinfo.club/v1/work/" + foreignBookId;
-
-                var request = new HttpRequestMessage(HttpMethod.Get, url);
-                request.Headers.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36");
-
-                var httpResponse = httpClient.Send(request);
-
-                if (httpResponse.StatusCode == HttpStatusCode.TooManyRequests)
-                {
-                    WaitUntilRetry(httpResponse);
-                    continue;
-                }
-
-                if (httpResponse.StatusCode == HttpStatusCode.NotFound)
-                {
-                    throw new Exception("Book Not Found: " + foreignBookId);
-                }
-
-                if (httpResponse.StatusCode == HttpStatusCode.Redirect)
-                {
-                    var location = httpResponse.Headers.Location.OriginalString;
-                    var split = location.Split('/').Reverse().ToList();
-                    var newId = split[0];
-                    var type = split[1];
-
-                    if (type == "author")
-                    {
-                        url = "https://api.bookinfo.club/v1/author/" + newId;
-                        
-                        request = new HttpRequestMessage(HttpMethod.Get, url);
-                        request.Headers.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36");
-
-                        httpResponse = httpClient.Send(request);
-
-                        var author = JsonConvert.DeserializeObject<AuthorResource>(httpResponse.Content.ReadAsStringAsync().Result);
-                        var authorBook = author.Works.SingleOrDefault(x => x.ForeignId.ToString() == foreignBookId);
-
-                        if (authorBook == null)
-                        {
-                            throw new Exception("Book Not Found: " + foreignBookId);
-                        }
-                        
-                        authorBook.Authors = new List<AuthorResource>(){author};
-                        var authorBookSeries = author.Series.Where(s =>
-                            s.LinkItems.Any(i => i.ForeignWorkId.ToString() == foreignBookId)).ToList();
-                        if (author.Series.Any() && !authorBook.Series.Any() && authorBookSeries.Any())
-                            authorBook.Series = authorBookSeries;
-
-                        httpClient.Dispose();
-                        
-                        return MapMetadata(authorBook);
-                    }
-                    else
-                    {
-                        throw new NotImplementedException($"Unexpected response from {httpResponse.RequestMessage.RequestUri}");
-                    }
-                }
-
-                if (!httpResponse.IsSuccessStatusCode)
-                {
-                    if (httpResponse.StatusCode == HttpStatusCode.BadRequest)
-                    {
-                        throw new Exception("Bad Request: " + foreignBookId);
-                    }
-                    else
-                    {
-                        throw new Exception("Unexpected response fetching book data");
-                    }
-                }
-                
-                resource = JsonConvert.DeserializeObject<WorkResource>(httpResponse.Content.ReadAsStringAsync().Result);
-
-                if (resource.Books != null)
-                {
-                    break;
-                }
-
-                Thread.Sleep(2000);
+                throw new Exception("Work Not Found: " + identifier);
             }
 
-            if (resource?.Books == null || resource?.Authors == null || (!resource?.Authors?.Any() ?? false))
+            if (!response.IsSuccessStatusCode)
             {
-                throw new Exception($"Failed to get books for {foreignBookId}");
+                if (response.StatusCode == HttpStatusCode.BadRequest)
+                {
+                    throw new Exception("Bad Request: " + identifier);
+                }
+                else
+                {
+                    throw new Exception("Unexpected response fetching book data");
+                }
             }
 
-            var book = MapMetadata(resource);
+            var work = JsonConvert.DeserializeObject<Work>(response.Content.ReadAsStringAsync().Result);
 
-            httpClient.Dispose();
-
-            return book;
+            return work;
         }
 
-        private void WaitUntilRetry(HttpResponseMessage response)
+        private Book GetBook(string url)
         {
-            var seconds = 5;
+            var client = new HttpClient();
+            var request = new HttpRequestMessage(HttpMethod.Post, "https://biblioreads.kaldigo.co.uk/api/book-scraper");
+            var content = new StringContent("{\"queryURL\":\"https://www.goodreads.com" + url + "\"}", null, "application/json");
+            request.Content = content;
 
-            if (response.Headers.RetryAfter.Delta.HasValue)
+            var response = client.Send(request);
+
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                seconds = (int)response.Headers.RetryAfter.Delta.Value.TotalSeconds;
+                throw new Exception("Book Not Found: " + url);
             }
 
-            Thread.Sleep(TimeSpan.FromSeconds(seconds));
+            if (!response.IsSuccessStatusCode)
+            {
+                if (response.StatusCode == HttpStatusCode.BadRequest)
+                {
+                    throw new Exception("Bad Request: " + url);
+                }
+                else
+                {
+                    throw new Exception("Unexpected response fetching book data");
+                }
+            }
+
+            var book = JsonConvert.DeserializeObject<Book>(response.Content.ReadAsStringAsync().Result);
+
+            return book;
+
+        }
+
+        private Metadata.MetadataSeries ParseSeries(string series)
+        {
+            var seriesRegex = new Regex(@"^(?<series>.+)?\s#(?<volume>\d+)$");
+            var match = seriesRegex.Match(series);
+            if (match.Success)
+            {
+                return new Metadata.MetadataSeries(match.Groups["series"].Value, match.Groups["volume"].Value);
+            }
+            else
+            {
+                return new Metadata.MetadataSeries(series, null);
+            }
+        }
+
+        private DateTime? ParseDate(string date1, string date2)
+        {
+            var date = String.IsNullOrEmpty(date1) ? date2 : date1;
+            if (date == null) return null;
+
+            var dayRegex = new Regex(@"(?<day>\d\d?)(?:st|nd|rd|th|,)");
+            var monthRegex = new Regex(@"(?<month>January|February|March|April|May|June|July|August|September|October|November)");
+            var yearRegex = new Regex(@"(?<year>\d{4})");
+            var matchDay = dayRegex.Match(date);
+            var matchMonth = monthRegex.Match(date);
+            var matchYear = yearRegex.Match(date);
+
+            var day = matchDay.Success ? int.Parse(matchDay.Groups["day"].Value) : 1;
+            var monthString = matchMonth.Success ? matchMonth.Groups["month"].Value : null;
+            var month = 0;
+            var year = matchYear.Success ? int.Parse(matchYear.Groups["year"].Value) : 0;
+
+            switch (monthString)
+            {
+                case "January":
+                    month = 1;
+                    break;
+                case "February":
+                    month = 2;
+                    break;
+                case "March":
+                    month = 3;
+                    break;
+                case "April":
+                    month = 4;
+                    break;
+                case "May":
+                    month = 5;
+                    break;
+                case "June":
+                    month = 6;
+                    break;
+                case "July":
+                    month = 7;
+                    break;
+                case "August":
+                    month = 8;
+                    break;
+                case "September":
+                    month = 9;
+                    break;
+                case "October":
+                    month = 10;
+                    break;
+                case "November":
+                    month = 11;
+                    break;
+                case "December":
+                    month = 12;
+                    break;
+            }
+
+            if (year == 0) return null;
+            if (month == 0) return new DateTime(year);
+            return new DateTime(year, month, day);
+
+        }
+        private string ParsePublisher(string date1, string date2)
+        {
+            var date = String.IsNullOrEmpty(date1) ? date2 : date1;
+            if (date == null) return null;
+
+            var publisherRegex = new Regex(@"by(?<publisher>.+)");
+            var match = publisherRegex.Match(date);
+
+            if (match.Success)
+            {
+                return match.Groups["publisher"].Value.Trim();
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        private string ParseLanguage(string language)
+        {
+            switch (language.ToLower().Trim())
+            {
+                case "en-us":
+                case "en-gb":
+                case "eng":
+                case "english":
+                    return "English";
+                default:
+                    return language.Replace("\\n", "").Trim();
+            }
         }
 
         #region Import Model
-
-        public class WorkResource
+        // Root myDeserializedClass = JsonConvert.DeserializeObject<Root>(myJsonResponse);
+        public class Edition
         {
-            public int ForeignId { get; set; }
-            public string Title { get; set; }
-            public string Url { get; set; }
-            public DateTime? ReleaseDate { get; set; }
-            public List<string> Genres { get; set; }
-            public List<int> RelatedWorks { get; set; }
-            public List<BookResource> Books { get; set; }
-            public List<SeriesResource> Series { get; set; } = new List<SeriesResource>();
-            public List<AuthorResource> Authors { get; set; } = new List<AuthorResource>();
+            public int id { get; set; }
+            public string cover { get; set; }
+            public string title { get; set; }
+            public string url { get; set; }
+            public string publishDate { get; set; }
+            public string editionInfo { get; set; }
+            public string rating { get; set; }
+            public string ISBN { get; set; }
+            public string ASIN { get; set; }
+            public string editionLanguage { get; set; }
         }
 
-        public class BookResource
+        public class Work
         {
-            public int ForeignId { get; set; }
-            public string Asin { get; set; }
-            public string Description { get; set; }
-            public string Isbn13 { get; set; }
-            public string Title { get; set; }
-            public string Language { get; set; }
-            public string Format { get; set; }
-            public string EditionInformation { get; set; }
-            public string Publisher { get; set; }
-            public string ImageUrl { get; set; }
-            public bool IsEbook { get; set; }
-            public int? NumPages { get; set; }
-            public int RatingCount { get; set; }
-            public double AverageRating { get; set; }
-            public string Url { get; set; }
-            public DateTime? ReleaseDate { get; set; }
-
-            public List<ContributorResource> Contributors { get; set; } = new List<ContributorResource>();
+            public string status { get; set; }
+            public string source { get; set; }
+            public string scrapeURL { get; set; }
+            public string book { get; set; }
+            public string bookURL { get; set; }
+            public string author { get; set; }
+            public string authorURL { get; set; }
+            public string publishDate { get; set; } = "";
+            public string firstPublished { get; set; } = "";
+            public List<Edition> editions { get; set; }
+            public DateTime lastScraped { get; set; }
+        }
+        public class Author
+        {
+            public int id { get; set; }
+            public string name { get; set; }
+            public string url { get; set; }
         }
 
-        public class SeriesResource
+        public class Review
         {
-            public int ForeignId { get; set; }
-            public string Title { get; set; }
-            public string Description { get; set; }
-
-            public List<SeriesWorkLinkResource> LinkItems { get; set; }
+            public int id { get; set; }
+            public string image { get; set; }
+            public string author { get; set; }
+            public string date { get; set; }
+            public string text { get; set; }
+            public string likes { get; set; }
+            public string stars { get; set; }
         }
 
-        public class SeriesWorkLinkResource
+        public class ReviewBreakdown
         {
-            public int ForeignWorkId { get; set; }
-            public string PositionInSeries { get; set; }
-            public int SeriesPosition { get; set; }
-            public bool Primary { get; set; }
+            public string rating5 { get; set; }
+            public string rating4 { get; set; }
+            public string rating3 { get; set; }
+            public string rating2 { get; set; }
+            public string rating1 { get; set; }
         }
 
-        public class AuthorResource
+        public class Book
         {
-            public int ForeignId { get; set; }
-            public string Name { get; set; }
-            public string Description { get; set; }
-            public string ImageUrl { get; set; }
-            public string Url { get; set; }
-            public int RatingCount { get; set; }
-            public double AverageRating { get; set; }
-            public List<WorkResource> Works { get; set; }
-            public List<SeriesResource> Series { get; set; }
+            public string status { get; set; }
+            public int statusCode { get; set; }
+            public string source { get; set; }
+            public string scrapeURL { get; set; }
+            public string cover { get; set; }
+            public string series { get; set; }
+            public string workURL { get; set; }
+            public string title { get; set; }
+            public List<Author> author { get; set; }
+            public string rating { get; set; }
+            public string ratingCount { get; set; }
+            public string reviewsCount { get; set; }
+            public string desc { get; set; }
+            public List<string> genres { get; set; }
+            public string bookEdition { get; set; }
+            public string publishDate { get; set; }
+            public List<object> related { get; set; }
+            public ReviewBreakdown reviewBreakdown { get; set; }
+            public List<Review> reviews { get; set; }
+            public string quotes { get; set; }
+            public string quotesURL { get; set; }
+            public string questions { get; set; }
+            public string questionsURL { get; set; }
+            public DateTime lastScraped { get; set; }
         }
 
-        public class ContributorResource
+        public class Result
         {
-            public int ForeignId { get; set; }
-            public string Role { get; set; }
+            public int id { get; set; }
+            public string cover { get; set; }
+            public string title { get; set; }
+            public string bookURL { get; set; }
+            public string author { get; set; }
+            public string authorURL { get; set; }
+            public string rating { get; set; }
         }
 
-        public class SearchJsonResource
+        public class GoodreadsSearch
         {
-            [JsonProperty("imageUrl")]
-            public string ImageUrl { get; set; }
-
-            [JsonProperty("bookId")]
-            public int BookId { get; set; }
-
-            [JsonProperty("workId")]
-            public int WorkId { get; set; }
-
-            [JsonProperty("bookUrl")]
-            public string BookUrl { get; set; }
-
-            [JsonProperty("from_search")]
-            public bool FromSearch { get; set; }
-
-            [JsonProperty("from_srp")]
-            public bool FromSrp { get; set; }
-
-            [JsonProperty("qid")]
-            public string Qid { get; set; }
-
-            [JsonProperty("rank")]
-            public int Rank { get; set; }
-
-            [JsonProperty("title")]
-            public string Title { get; set; }
-
-            [JsonProperty("bookTitleBare")]
-            public string BookTitleBare { get; set; }
-
-            [JsonProperty("numPages")]
-            public int? PageCount { get; set; }
-
-            [JsonProperty("avgRating")]
-            public decimal AverageRating { get; set; }
-
-            [JsonProperty("ratingsCount")]
-            public int RatingsCount { get; set; }
-
-            [JsonProperty("author")]
-            public AuthorJsonResource Author { get; set; }
-
-            [JsonProperty("kcrPreviewUrl")]
-            public string KcrPreviewUrl { get; set; }
-
-            [JsonProperty("description")]
-            public DescriptionJsonResource Description { get; set; }
-        }
-
-        public class AuthorJsonResource
-        {
-            [JsonProperty("id")]
-            public int Id { get; set; }
-
-            [JsonProperty("name")]
-            public string Name { get; set; }
-
-            [JsonProperty("isGoodreadsAuthor")]
-            public bool IsGoodreadsAuthor { get; set; }
-
-            [JsonProperty("profileUrl")]
-            public string ProfileUrl { get; set; }
-
-            [JsonProperty("worksListUrl")]
-            public string WorksListUrl { get; set; }
-        }
-
-        public class DescriptionJsonResource
-        {
-            [JsonProperty("html")]
-            public string Html { get; set; }
-
-            [JsonProperty("truncated")]
-            public bool Truncated { get; set; }
-
-            [JsonProperty("fullContentUrl")]
-            public string FullContentUrl { get; set; }
+            public string status { get; set; }
+            public string source { get; set; }
+            public string scrapeURL { get; set; }
+            public string searchType { get; set; }
+            public string numberOfResults { get; set; }
+            public List<Result> result { get; set; }
+            public DateTime lastScraped { get; set; }
         }
 
         #endregion
