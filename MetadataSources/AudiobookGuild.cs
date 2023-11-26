@@ -88,6 +88,7 @@ namespace Anthology.Plugins.MetadataSources
             metadata.Genres = audiobookGuildBook.GetTags("Genre");
             metadata.Tags = audiobookGuildBook.GetTags("Trope");
             metadata.Covers = audiobookGuildBook.images.Select(i => Regex.Unescape(i.src)).ToList();
+            metadata.IsExplicit = true;
 
             return metadata;
         }
