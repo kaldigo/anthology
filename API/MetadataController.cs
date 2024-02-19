@@ -18,10 +18,10 @@ namespace Anthology.Api
 
         // GET api/Metadata/Search
         [HttpGet("Search")]
-        public List<ApiMetadata> AudiobookSearch(string title, string? author = null, string? isbn = null)
+        public List<ApiMetadata> AudiobookSearch(string query, string? author = null, string? isbn = null)
         {
             var parameters = new Dictionary<string, string>();
-            if (title != null) parameters.Add("title", title);
+            if (query != null) parameters.Add("title", query);
             if (author != null) parameters.Add("author", author);
             if (isbn != null) parameters.Add("isbn", isbn);
             parameters.Add("host", this.Request.Scheme + "://" + this.Request.Host);
