@@ -18,10 +18,20 @@
     <MudItem xs="12">
         @foreach (var plugin in Plugins)
         {
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mr-2" OnClick="() => SearchMetadataSource(plugin)">@plugin.Name</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mr-2" OnClick="() => PerformSearch(plugin)">@plugin.Name</MudButton>
         }
     </MudItem>
-    @if (StartedSearch)
+    @if (Loading)
+    {
+        <MudItem xs="12">
+            <MudDialog Class="add-edit-book-dialog">
+                <DialogContent>
+                    <LoadingIndicator />
+                </DialogContent>
+            </MudDialog>
+        </MudItem>
+    }
+    else if (StartedSearch)
     {
         <MudItem xs="12">
             @if (Results == null || Results.Count == 0)
@@ -63,9 +73,9 @@
     public EventCallback BookMatched { get; set; }
 
     bool StartedSearch { get; set; } = false;
+    bool Loading { get; set; } = false;
 
     List<MetadataSearchResult> Results { get; set; } = new();
-
     IEnumerable<Plugin> Plugins { get; set; }
 
     string Title => !string.IsNullOrWhiteSpace(Book.Title) ? Book.Title : Book.BookMetadata.Title;
@@ -82,11 +92,21 @@
         Plugins = _pluginsService.GetPluginList().Where(p => p.Type == Plugin.PluginType.Metadata);
     }
 
-    async Task SearchMetadataSource(Plugin plugin)
+    async Task PerformSearch(Plugin plugin)
     {
-        Results = await _metadataService.SearchMetadata(plugin, Title, Author);
-        StartedSearch = true;
-        StateHasChanged();
+        try
+        {
+            Loading = true; // Start the loading indicator
+            await Task.Delay(1); // Ensure the loading indicator is displayed
+            StateHasChanged();
+            Results = await _metadataService.SearchMetadata(plugin, Title, Author);
+            StartedSearch = true;
+        }
+        finally
+        {
+            Loading = false; // Stop the loading indicator
+            StateHasChanged();
+        }
     }
 
     async Task MatchResult(MetadataSearchResult result)
@@ -97,5 +117,4 @@
         Results = new List<MetadataSearchResult>();
         StateHasChanged();
     }
-
 }
