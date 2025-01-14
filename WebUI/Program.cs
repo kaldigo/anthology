@@ -48,7 +48,6 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowSpecificOrigins", policy =>
     {
         policy.WithOrigins(
-            "https://audiobookshelf.kaldigo.co.uk",
             "http://localhost",
             "http://127.0.0.1"
         )
