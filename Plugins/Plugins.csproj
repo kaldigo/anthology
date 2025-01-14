@@ -8,4 +8,8 @@
     <RootNamespace>Anthology.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.Runtime.Caching" Version="9.0.0" />
+  </ItemGroup>
+
 </Project>

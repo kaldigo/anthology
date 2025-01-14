@@ -86,33 +86,59 @@ namespace Anthology.Services
 
         public void SaveBook(Book book, bool updateMetadata = false, bool metadataRefreshed = false)
         {
-            var metadataIdentifiers = _pluginsService.GetPluginList().Where(p => p.Type == Plugin.PluginType.Metadata)
+            // Synchronous portion
+            var metadataIdentifiers = _pluginsService.GetPluginList()
+                .Where(p => p.Type == Plugin.PluginType.Metadata)
                 .Select(p => p.Identifier);
 
-            bool IdentifiersChanged = false;
-            book.Identifiers.RemoveAll(i => book.Identifiers.Where(a => (string.IsNullOrWhiteSpace(a.Value) && a.Exists)).Select(r => r.Key).Contains(i.Key));
+            book.Identifiers.RemoveAll(i => book.Identifiers
+                .Where(a => string.IsNullOrWhiteSpace(a.Value) && a.Exists)
+                .Select(r => r.Key)
+                .Contains(i.Key));
+
+            var uniqueIdentifiers = book.Identifiers
+                .GroupBy(i => i.Key)
+                .Select(g =>
+                {
+                    var nonEmpty = g.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Value));
+                    return nonEmpty ?? g.First();
+                })
+                .ToList();
+
+            book.Identifiers = uniqueIdentifiers;
+
             if (book.ISBN == null)
             {
                 book.ISBN = Book.GenerateId(_context);
                 _context.Books.Add(book);
-                if(book.Identifiers.Any(i => metadataIdentifiers.Contains(i.Key))) updateMetadata = true;
+                if (book.Identifiers.Any(i => metadataIdentifiers.Contains(i.Key)))
+                {
+                    updateMetadata = true;
+                }
             }
             else
             {
                 var dbBook = _context.Books.SingleOrDefault(x => x.ISBN == book.ISBN);
                 _context.Books.Update(book);
             }
-            _context.SaveChanges();
-            if (updateMetadata)
+
+            _context.SaveChanges(); // Blocking save for critical operations
+
+            // Asynchronous portion
+            Task.Run(async () =>
             {
-                _metadataService.RefreshBookMetadata(book);
-                _context.SaveChanges();
-            }
-            if (metadataRefreshed)
-            {
-                _metadataService.RefreshMetadataCache();
-            }
+                if (updateMetadata)
+                {
+                    _metadataService.RefreshBookMetadata(book);
+                    await _context.SaveChangesAsync();
+                }
+                if (metadataRefreshed)
+                {
+                    _metadataService.RefreshMetadataCache();
+                }
+            });
         }
+
 
         public void DeleteBook(string isbn)
         {

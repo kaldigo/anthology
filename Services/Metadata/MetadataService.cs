@@ -94,13 +94,15 @@ namespace Anthology.Services
             return Task.FromResult(mergedMetadata);
         }
 
-        public Task RefreshMetadataCache()
+        public async Task RefreshMetadataCache()
         {
-            _classificationService.RefreshMetadataClassifications();
-            _seriesService.RefreshMetadataSeries();
-            _personService.RefreshMetadataPeople();
-            this._isPendingRefresh = false;
-            return Task.CompletedTask;
+            await Task.Run(() =>
+            {
+                _classificationService.RefreshMetadataClassifications();
+                _seriesService.RefreshMetadataSeries();
+                _personService.RefreshMetadataPeople();
+                this._isPendingRefresh = false;
+            });
         }
 
         public Task RefreshBookMetadata(Book book)
