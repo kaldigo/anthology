@@ -1,151 +1,283 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using HtmlAgilityPack;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Anthology.Plugins;
 using Anthology.Plugins.Models;
-using System.IO.Compression;
-using System.Text.RegularExpressions;
+using HtmlAgilityPack;
 
 namespace Anthology.Plugins.DownloadSources
 {
     public class BookFunnel : IDownloadSource
     {
         public string Name => "Book Funnel";
-
         public string IdentifierKey => "BFID";
-
-        public List<string> Settings => new List<string>() { "Username", "Password" };
+        public List<string> Settings => new List<string> { "Username", "Password" };
 
         private static Task _downloadTask;
-        private static List<Download> _downloadQueue = new List<Download>();
+        private static readonly List<Download> _downloadQueue = new List<Download>();
 
         private static Task _extractTask;
-        private static List<Download> _extractQueue = new List<Download>();
+        private static readonly List<Download> _extractQueue = new List<Download>();
+
+        #region IDownloadSource Implementation
 
         public bool DownloadBook(Download download, string mediaPath, Dictionary<string, string> settings)
         {
             return DownloadBookTask(mediaPath, settings, download);
         }
 
-        private bool DownloadBookTask(string mediaPath, Dictionary<string, string> settings, Download download = null)
-        {
-            if (download != null && !_downloadQueue.Select(d => d.Identifier).Contains(download.Identifier)) _downloadQueue.Add(download);
-            if (_downloadTask != null && (_downloadTask.Status == TaskStatus.Running || _downloadTask.Status == TaskStatus.WaitingToRun || _downloadTask.Status == TaskStatus.WaitingForActivation))
-            {
-                return true;
-            }
-            else
-            {
-                if (_downloadQueue.Count() == 0)
-                {
-                    return true;
-                }
-                else
-                {
-                    var currentDownload = _downloadQueue.First();
-
-                    _downloadTask = Task.Factory.StartNew(() =>
-                    {
-                        BrowserSession b = new BrowserSession();
-                        Login(b, settings);
-                        
-                        string downloadURL = GetBookDownloadPage(b, currentDownload.Identifier);
-                        string zipPath = Path.Combine(mediaPath, string.Concat(string.Join(", ", currentDownload.Author).Trim().Split(Path.GetInvalidFileNameChars())) + " - " + string.Concat(currentDownload.Title.Trim().Split(Path.GetInvalidFileNameChars())) + ".zip");
-                        using (WebClient client = new WebClient())
-                        {
-                            client.DownloadFile(downloadURL, zipPath);
-                        }
-
-                    });
-
-                    _downloadTask.Wait();
-
-                    ExtractBookTask(mediaPath, download);
-                    _downloadQueue.Remove(download);
-
-                    DownloadBookTask(mediaPath, settings);
-
-                    return true;
-                }
-            }
-        }
-        private async Task<bool> ExtractBookTask(string mediaPath, Download download = null)
-        {
-            if (download != null && !_extractQueue.Select(d => d.Identifier).Contains(download.Identifier)) _extractQueue.Add(download);
-            if (_extractTask != null && (_extractTask.Status == TaskStatus.Running || _extractTask.Status == TaskStatus.WaitingToRun || _extractTask.Status == TaskStatus.WaitingForActivation))
-            {
-                return true;
-            }
-            else
-            {
-                if (_extractQueue.Count() == 0)
-                {
-                    return true;
-                }
-                else
-                {
-                    var currentDownload = _extractQueue.First();
-
-                    _extractTask = Task.Factory.StartNew(() =>
-                    {
-                        string zipPath = Path.Combine(mediaPath, string.Concat(string.Join(", ", currentDownload.Author).Trim().Split(Path.GetInvalidFileNameChars())) + " - " + string.Concat(currentDownload.Title.Trim().Split(Path.GetInvalidFileNameChars())) + ".zip");
-                        var itemPath = Path.Combine(mediaPath, string.Concat(string.Join(", ", currentDownload.Author).Trim().Split(Path.GetInvalidPathChars())), string.Concat(currentDownload.Title.Trim().Split(Path.GetInvalidPathChars())));
-                        Directory.CreateDirectory(itemPath);
-                        ZipFile.ExtractToDirectory(zipPath, itemPath);
-                        File.Delete(zipPath);
-                        foreach (var filePath in Directory.GetFiles(itemPath))
-                        {
-                            if (Path.GetExtension(filePath) == ".mp3")
-                            {
-                                var fileName = Path.GetFileName(filePath);
-                                var newFileName = Regex.Replace(fileName, @"\d{3} .+? - .+? - ", "");
-                                var newPath = Path.Combine(itemPath, newFileName);
-                                File.Move(filePath, newPath);
-                            }
-                        }
-                    });
-
-                    _extractTask.Wait();
-
-                    _extractQueue.Remove(download);
-
-                    ExtractBookTask(mediaPath);
-
-                    return true;
-                }
-            }
-        }
-
         public List<Download> GetDownloadList(Dictionary<string, string> settings)
         {
-            var b = new BrowserSession();
-            Login(b, settings);
-
-            return GetBookList(b);
-        }
-        public static void Login(BrowserSession b, Dictionary<string, string> settings)
-        {
-            b.Get("https://my.bookfunnel.com/login");
-            b.FormElements["email"] = settings["Username"];
-            b.FormElements["password"] = settings["Password"];
-            b.Post("https://my.bookfunnel.com/login");
+            var browser = new BrowserSession();
+            Login(browser, settings);
+            return GetBookList(browser);
         }
 
-        public List<Download> GetBookList(BrowserSession b)
+        #endregion
+
+        #region Internal Download/Extract Logic
+
+        private bool DownloadBookTask(string mediaPath, Dictionary<string, string> settings, Download download = null)
         {
-            List<Download> books = new List<Download>();
-            int pageLength = 48;
-            int offset = 0;
-            bool keepChecking = true;
+            // If a new download was passed, add it if not already in the queue
+            if (download != null && !_downloadQueue.Select(d => d.Identifier).Contains(download.Identifier))
+            {
+                _downloadQueue.Add(download);
+            }
+
+            // If a download task is still running or waiting, bail out
+            if (_downloadTask != null &&
+               (_downloadTask.Status == TaskStatus.Running ||
+                _downloadTask.Status == TaskStatus.WaitingToRun ||
+                _downloadTask.Status == TaskStatus.WaitingForActivation))
+            {
+                return true;
+            }
+
+            // If no downloads are pending, exit
+            if (_downloadQueue.Count == 0) return true;
+
+            // Take the first item in the queue
+            var currentDownload = _downloadQueue.First();
+
+            // Start the download process
+            _downloadTask = Task.Factory.StartNew(() =>
+            {
+                var browser = new BrowserSession();
+                Login(browser, settings);
+
+                var downloadUrl = GetBookDownloadPage(browser, currentDownload.Identifier);
+
+                var zipPath = Path.Combine(
+                    mediaPath,
+                    $"{CleanFileName(string.Join(", ", currentDownload.Author).Trim())} - {CleanFileName(currentDownload.Title.Trim())}.zip"
+                );
+
+                using (var client = new WebClient())
+                {
+                    client.DownloadFile(downloadUrl, zipPath);
+                }
+            });
+
+            // Block until download finishes
+            _downloadTask.Wait();
+
+            // Once downloaded, extract the book
+            ExtractBookTask(mediaPath, currentDownload);
+
+            // Remove from queue
+            _downloadQueue.Remove(currentDownload);
+
+            // If there are more downloads, recursively process them
+            DownloadBookTask(mediaPath, settings);
+
+            return true;
+        }
+
+        private async Task<bool> ExtractBookTask(string mediaPath, Download download = null)
+        {
+            // If a new download was passed, add it if not already in the queue
+            if (download != null && !_extractQueue.Select(d => d.Identifier).Contains(download.Identifier))
+            {
+                _extractQueue.Add(download);
+            }
+
+            // If an extract task is still running or waiting, bail out
+            if (_extractTask != null &&
+               (_extractTask.Status == TaskStatus.Running ||
+                _extractTask.Status == TaskStatus.WaitingToRun ||
+                _extractTask.Status == TaskStatus.WaitingForActivation))
+            {
+                return true;
+            }
+
+            // If no extracts are pending, exit
+            if (_extractQueue.Count == 0) return true;
+
+            // Take the first item in the queue
+            var currentDownload = _extractQueue.First();
+
+            // Start the extraction process
+            _extractTask = Task.Factory.StartNew(() =>
+            {
+                var zipPath = Path.Combine(
+                    mediaPath,
+                    $"{CleanFileName(string.Join(", ", currentDownload.Author).Trim())} - {CleanFileName(currentDownload.Title.Trim())}.zip"
+                );
+
+                var itemPath = Path.Combine(
+                    mediaPath,
+                    CleanFileName(string.Join(", ", currentDownload.Author).Trim()),
+                    CleanFileName(currentDownload.Title.Trim())
+                );
+
+                Directory.CreateDirectory(itemPath);
+
+                // Extract ZIP to designated folder
+                ZipFile.ExtractToDirectory(zipPath, itemPath);
+
+                // Remove the ZIP file after extraction
+                File.Delete(zipPath);
+
+                // Clean up MP3 file names
+                foreach (var filePath in Directory.GetFiles(itemPath))
+                {
+                    if (Path.GetExtension(filePath).Equals(".mp3", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var fileName = Path.GetFileName(filePath);
+                        var newFileName = Regex.Replace(fileName, @"\d{3} .+? - .+? - ", "");
+                        var newPath = Path.Combine(itemPath, newFileName);
+                        File.Move(filePath, newPath);
+                    }
+                }
+            });
+
+            // Block until extraction finishes
+            _extractTask.Wait();
+
+            // Remove from queue
+            _extractQueue.Remove(currentDownload);
+
+            // If more extracts are pending, recurse
+            await ExtractBookTask(mediaPath);
+
+            return true;
+        }
+
+        #endregion
+
+        #region BookFunnel-specific Logic
+
+        public static void Login(BrowserSession browser, Dictionary<string, string> settings)
+        {
+            const string loginUrl = "https://my.bookfunnel.com/login";
+
+            var request = (HttpWebRequest)WebRequest.Create(loginUrl);
+            request.Method = "POST";
+            request.ContentType = "application/x-www-form-urlencoded";
+            request.AllowAutoRedirect = false;
+            request.CookieContainer = new CookieContainer();
+
+            // Set headers
+            request.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                                "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                                "Chrome/91.0.4472.124 Safari/537.36";
+            request.Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+            request.Headers.Add("Accept-Language", "en-US,en;q=0.5");
+
+            // Prepare form data
+            var formData = $"email={Uri.EscapeDataString(settings["Username"])}" +
+                           $"&password={Uri.EscapeDataString(settings["Password"])}";
+            var formDataBytes = Encoding.UTF8.GetBytes(formData);
+
+            // Write form data
+            using (var stream = request.GetRequestStream())
+            {
+                stream.Write(formDataBytes, 0, formDataBytes.Length);
+            }
+
+            // Send request
+            using (var response = (HttpWebResponse)request.GetResponse())
+            {
+                // Handle manual redirects
+                if ((response.StatusCode == HttpStatusCode.Found ||
+                     response.StatusCode == HttpStatusCode.Redirect) &&
+                     response.Headers["Set-Cookie"] != null)
+                {
+                    foreach (var cookieHeader in response.Headers.GetValues("Set-Cookie"))
+                    {
+                        var cookie = ParseCookie(cookieHeader, request.RequestUri.Host);
+                        if (cookie != null)
+                        {
+                            browser.Cookies ??= new CookieCollection();
+                            browser.Cookies.Add(cookie);
+                        }
+                    }
+                }
+            }
+        }
+
+        private static Cookie ParseCookie(string rawCookie, string domain)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(rawCookie)) return null;
+
+                var parts = rawCookie.Split(';');
+                var nameValue = parts[0].Split('=');
+
+                if (nameValue.Length != 2) return null;
+
+                var name = nameValue[0].Trim();
+                var value = nameValue[1].Trim();
+                if (string.IsNullOrEmpty(name)) return null;
+
+                var cookie = new Cookie(name, value) { Domain = domain };
+
+                // Parse additional attributes
+                foreach (var part in parts.Skip(1))
+                {
+                    var attribute = part.Trim().ToLower();
+                    if (attribute == "secure") cookie.Secure = true;
+                    else if (attribute == "httponly") { /* default in .NET cookie container */ }
+                    else if (attribute.StartsWith("expires="))
+                    {
+                        if (DateTime.TryParse(attribute.Substring(8), out var expiry))
+                        {
+                            cookie.Expires = expiry;
+                        }
+                    }
+                    else if (attribute.StartsWith("path="))
+                    {
+                        cookie.Path = attribute.Substring(5);
+                    }
+                }
+
+                return cookie;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public List<Download> GetBookList(BrowserSession browser)
+        {
+            var books = new List<Download>();
+            const int pageLength = 48;
+            var offset = 0;
+            var keepChecking = true;
+
             while (keepChecking)
             {
-                List<Download> booksToAdd = GetBookListPage(b, offset);
-                if (booksToAdd.Count != 0)
+                var booksToAdd = GetBookListPage(browser, offset);
+                if (booksToAdd.Count > 0)
                 {
                     books.AddRange(booksToAdd);
                     offset += pageLength;
@@ -155,70 +287,78 @@ namespace Anthology.Plugins.DownloadSources
                     keepChecking = false;
                 }
             }
+
             return books;
         }
 
-        public List<Download> GetBookListPage(BrowserSession b, int offset)
+        public List<Download> GetBookListPage(BrowserSession browser, int offset)
         {
-            List<Download> books = new List<Download>();
-            string pageHtml = b.Get("https://my.bookfunnel.com/books?sort=added&offset=" + offset);
+            var books = new List<Download>();
+            var pageHtml = browser.Get($"https://my.bookfunnel.com/books?sort=added&offset={offset}");
 
-            HtmlDocument htmlDoc = new HtmlDocument();
+            var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(pageHtml);
 
-            HtmlNodeCollection htmlNodes = htmlDoc.DocumentNode.SelectNodes("/div");
+            var htmlNodes = htmlDoc.DocumentNode.SelectNodes("/div");
+            if (htmlNodes == null) return books;
 
-            if (htmlNodes != null)
+            foreach (var node in htmlNodes)
             {
-                foreach (HtmlNode node in htmlNodes)
+                var book = new Download
                 {
-                    Download book = new Download();
-                    book.Key = IdentifierKey;
-                    book.Identifier = node.Attributes["data-id"].Value;
-                    book.Title = node.SelectSingleNode(".//span[contains(@class, 'title')]").InnerText;
-                    book.Author = new List<string>() { node.SelectSingleNode(".//span[contains(@class, 'author')]").InnerText };
-                    book.ImageURL = node.SelectSingleNode(".//img[contains(@class, 'library-cover')]").GetAttributeValue("src", "");
-                    book.DateAdded = DateTime.Now.AddSeconds(-int.Parse(node.SelectSingleNode(".//span[contains(@class, 'added')]").InnerText));
-                    books.Add(book);
-                }
-            }
+                    Key = IdentifierKey,
+                    Identifier = node.Attributes["data-id"]?.Value,
+                    Title = node.SelectSingleNode(".//span[contains(@class, 'title')]")?.InnerText ?? "",
+                    Author = new List<string>
+                    {
+                        node.SelectSingleNode(".//span[contains(@class, 'author')]")?.InnerText ?? ""
+                    },
+                    ImageURL = node.SelectSingleNode(".//img[contains(@class, 'library-cover')]")
+                                      ?.GetAttributeValue("src", ""),
+                    DateAdded = DateTime.Now.AddSeconds(
+                        -int.Parse(node.SelectSingleNode(".//span[contains(@class, 'added')]")?.InnerText ?? "0"))
+                };
 
+                books.Add(book);
+            }
             return books;
         }
 
-        public static string GetBookDownloadPage(BrowserSession b, string bookId)
+        public static string GetBookDownloadPage(BrowserSession browser, string bookId)
         {
-            string pageHtml = b.Get("https://my.bookfunnel.com/" + bookId + "/download_table");
-
-            HtmlDocument htmlDoc = new HtmlDocument();
+            var pageHtml = browser.Get($"https://my.bookfunnel.com/{bookId}/download_table");
+            var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(pageHtml);
 
-            HtmlNode htmlNode = htmlDoc.DocumentNode.SelectSingleNode("//a");
-
-            return htmlNode.GetAttributeValue("href", null);
+            var linkNode = htmlDoc.DocumentNode.SelectSingleNode("//a");
+            return linkNode?.GetAttributeValue("href", null);
         }
 
-        #region Import Model
+        #endregion
+
+        #region Helper Methods
+
+        /// <summary>
+        /// Removes invalid characters from filenames.
+        /// </summary>
+        private static string CleanFileName(string name)
+        {
+            var invalidChars = Path.GetInvalidFileNameChars();
+            return string.Join("_", name.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
+        }
+
+        #endregion
+
+        #region Nested Classes
+
         public class BrowserSession
         {
             private bool _isPost;
-            private bool _isDownload;
             private HtmlDocument _htmlDoc;
-            private string _download;
 
-            /// <summary>
-            /// System.Net.CookieCollection. Provides a collection container for instances of Cookie class 
-            /// </summary>
             public CookieCollection Cookies { get; set; }
-
-            /// <summary>
-            /// Provide a key-value-pair collection of form elements 
-            /// </summary>
             public FormElementCollection FormElements { get; set; }
 
-            /// <summary>
-            /// Makes a HTTP GET request to the given URL
-            /// </summary>
             public string Get(string url)
             {
                 _isPost = false;
@@ -226,9 +366,6 @@ namespace Anthology.Plugins.DownloadSources
                 return _htmlDoc.DocumentNode.InnerHtml;
             }
 
-            /// <summary>
-            /// Makes a HTTP POST request to the given URL
-            /// </summary>
             public string Post(string url)
             {
                 _isPost = true;
@@ -236,76 +373,47 @@ namespace Anthology.Plugins.DownloadSources
                 return _htmlDoc.DocumentNode.InnerHtml;
             }
 
-            public string GetDownload(string url)
-            {
-                _isPost = false;
-                _isDownload = true;
-                CreateWebRequestObject().Load(url);
-                return _download;
-            }
-
-            /// <summary>
-            /// Creates the HtmlWeb object and initializes all event handlers. 
-            /// </summary>
             private HtmlWeb CreateWebRequestObject()
             {
-                HtmlWeb web = new HtmlWeb();
-                web.UseCookies = true;
-                web.PreRequest = new HtmlWeb.PreRequestHandler(OnPreRequest);
-                web.PostResponse = new HtmlWeb.PostResponseHandler(OnAfterResponse);
-                web.PreHandleDocument = new HtmlWeb.PreHandleDocumentHandler(OnPreHandleDocument);
+                var web = new HtmlWeb
+                {
+                    UseCookies = true,
+                    PreRequest = OnPreRequest,
+                    PostResponse = OnAfterResponse,
+                    PreHandleDocument = OnPreHandleDocument
+                };
                 return web;
             }
 
-            /// <summary>
-            /// Event handler for HtmlWeb.PreRequestHandler. Occurs before an HTTP request is executed.
-            /// </summary>
             protected bool OnPreRequest(HttpWebRequest request)
             {
-                AddCookiesTo(request);               // Add cookies that were saved from previous requests
-                if (_isPost) AddPostDataTo(request); // We only need to add post data on a POST request
+                AddCookiesTo(request);
+                if (_isPost) AddPostDataTo(request);
                 return true;
             }
 
-            /// <summary>
-            /// Event handler for HtmlWeb.PostResponseHandler. Occurs after a HTTP response is received
-            /// </summary>
             protected void OnAfterResponse(HttpWebRequest request, HttpWebResponse response)
             {
-                SaveCookiesFrom(request, response); // Save cookies for subsequent requests
-
-                if (response != null && _isDownload)
-                {
-                    Stream remoteStream = response.GetResponseStream();
-                    var sr = new StreamReader(remoteStream);
-                    _download = sr.ReadToEnd();
-                }
+                SaveCookiesFrom(request, response);
             }
 
-            /// <summary>
-            /// Event handler for HtmlWeb.PreHandleDocumentHandler. Occurs before a HTML document is handled
-            /// </summary>
             protected void OnPreHandleDocument(HtmlDocument document)
             {
-                SaveHtmlDocument(document);
+                _htmlDoc = document;
+                FormElements = new FormElementCollection(_htmlDoc);
             }
 
-            /// <summary>
-            /// Assembles the Post data and attaches to the request object
-            /// </summary>
             private void AddPostDataTo(HttpWebRequest request)
             {
-                string payload = FormElements.AssemblePostPayload();
-                byte[] buff = Encoding.UTF8.GetBytes(payload.ToCharArray());
+                var payload = FormElements.AssemblePostPayload();
+                var buff = Encoding.UTF8.GetBytes(payload);
                 request.ContentLength = buff.Length;
                 request.ContentType = "application/x-www-form-urlencoded";
-                Stream reqStream = request.GetRequestStream();
+
+                using var reqStream = request.GetRequestStream();
                 reqStream.Write(buff, 0, buff.Length);
             }
 
-            /// <summary>
-            /// Add cookies to the request object
-            /// </summary>
             private void AddCookiesTo(HttpWebRequest request)
             {
                 if (Cookies != null && Cookies.Count > 0)
@@ -314,74 +422,49 @@ namespace Anthology.Plugins.DownloadSources
                 }
             }
 
-            /// <summary>
-            /// Saves cookies from the response object to the local CookieCollection object
-            /// </summary>
             private void SaveCookiesFrom(HttpWebRequest request, HttpWebResponse response)
             {
-                //save the cookies ;)
                 if (request.CookieContainer.Count > 0 || response.Cookies.Count > 0)
                 {
-                    if (Cookies == null)
-                    {
-                        Cookies = new CookieCollection();
-                    }
-
+                    Cookies ??= new CookieCollection();
                     Cookies.Add(request.CookieContainer.GetCookies(request.RequestUri));
                     Cookies.Add(response.Cookies);
                 }
             }
-
-            /// <summary>
-            /// Saves the form elements collection by parsing the HTML document
-            /// </summary>
-            private void SaveHtmlDocument(HtmlDocument document)
-            {
-                _htmlDoc = document;
-                FormElements = new FormElementCollection(_htmlDoc);
-            }
         }
 
-        /// <summary>
-        /// Represents a combined list and collection of Form Elements.
-        /// </summary>
         public class FormElementCollection : Dictionary<string, string>
         {
-            /// <summary>
-            /// Constructor. Parses the HtmlDocument to get all form input elements. 
-            /// </summary>
             public FormElementCollection(HtmlDocument htmlDoc)
             {
                 var inputs = htmlDoc.DocumentNode.Descendants("input");
                 foreach (var element in inputs)
                 {
-                    string name = element.GetAttributeValue("name", "undefined");
-                    string value = element.GetAttributeValue("value", "");
+                    var name = element.GetAttributeValue("name", "undefined");
+                    var value = element.GetAttributeValue("value", "");
 
-                    if (!ContainsKey(name))
+                    if (!ContainsKey(name) &&
+                        !name.Equals("undefined", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (!name.Equals("undefined"))
-                        {
-                            Add(name, value);
-                        }
+                        Add(name, value);
                     }
                 }
             }
 
-            /// <summary>
-            /// Assembles all form elements and values to POST. Also html encodes the values.  
-            /// </summary>
             public string AssemblePostPayload()
             {
-                StringBuilder sb = new StringBuilder();
+                var sb = new StringBuilder();
                 foreach (var element in this)
                 {
-                    string value = System.Web.HttpUtility.UrlEncode(element.Value);
+                    var value = System.Web.HttpUtility.UrlEncode(element.Value);
                     sb.Append("&" + element.Key + "=" + value);
                 }
-                return sb.ToString().Substring(1);
+
+                // Remove the leading "&"
+                return sb.Length > 0 ? sb.ToString()[1..] : string.Empty;
             }
         }
+
         #endregion
     }
 }
