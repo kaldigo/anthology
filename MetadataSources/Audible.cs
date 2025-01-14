@@ -17,7 +17,7 @@ namespace Anthology.Plugins.MetadataSources
 
         public List<string> Settings => new List<string>();
 
-        public Metadata GetMetadata(string identifier, Dictionary<string, string> settings)
+        public Metadata PerformGetMetadata(string identifier, Dictionary<string, string> settings)
         {
             try
             {
@@ -42,7 +42,7 @@ namespace Anthology.Plugins.MetadataSources
             }
         }
 
-        public List<MetadataSearchResult> Search(Dictionary<string, string> settings, string title, string author = null)
+        public List<MetadataSearchResult> PerformSearch(Dictionary<string, string> settings, string title, string author = null)
         {
             using (HttpClient client = new HttpClient())
             {
@@ -57,7 +57,7 @@ namespace Anthology.Plugins.MetadataSources
                     foreach (var result in jsonString.products)
                     {
                         string resultAsin = result.asin;
-                        searchResults.Add(new MetadataSearchResult(){ Key = IdentifierKey, Identifier = resultAsin, Metadata = GetMetadata(resultAsin, settings)});
+                        searchResults.Add(new MetadataSearchResult(){ Key = IdentifierKey, Identifier = resultAsin, Metadata = ((IMetadataSource)this).GetMetadata(resultAsin, settings)});
                     }
 
                     return searchResults;
