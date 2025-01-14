@@ -82,6 +82,27 @@ namespace Anthology.Services
             return allPeople;
         }
 
+        public List<Person> GetAllPeople(List<Book> books)
+        {
+            if (_isCached == false) RefreshMetadataPeople();
+
+            var bookMetadata = books.Select(b => b.BookMetadata).ToList();
+
+            var metadataAuthors = bookMetadata.SelectMany(b => b.Authors).Select(a => new Person()
+            { Name = a });
+
+            var metadataNarrators = bookMetadata.SelectMany(b => b.Narrators).Select(n => new Person()
+            { Name = n });
+
+            var metadataPeople = CleanPeople(metadataAuthors.Concat(metadataNarrators).Concat(_metadataPeopleCache).ToList());
+
+            var dbPeople = _context.People.ToList();
+            var allPeople = dbPeople.Concat(metadataPeople).DistinctBy(c => c.Name)
+                .ToList();
+
+            return allPeople;
+        }
+
         public Person GetPerson(Guid guid)
         {
             return _context.People.First(c => c.ID == guid);

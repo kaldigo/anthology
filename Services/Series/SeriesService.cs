@@ -62,7 +62,7 @@ namespace Anthology.Services
 
         public List<Series> GetAllSeries(Metadata metadata = null)
         {
-            if(_isCached == false) RefreshMetadataSeries();
+            if (_isCached == false) RefreshMetadataSeries();
             var seriesList = _context.Series.ToList();
             seriesList = seriesList.Concat(_metadataSeriesCache).ToList();
             if (metadata != null)
@@ -73,6 +73,27 @@ namespace Anthology.Services
                         s.Name == metadataSeries.Name || s.Aliases.Any(a => a.Name == metadataSeries.Name));
                     if (series == null) seriesList.Add(new Series() { Name = metadataSeries.Name });
                 }
+            }
+
+            return seriesList;
+        }
+
+        public List<Series> GetAllSeries(List<Book> books)
+        {
+            if (_isCached == false) RefreshMetadataSeries();
+
+            var bookMetadata = books.Select(b => b.BookMetadata).ToList();
+
+            var metadataSeriesList = bookMetadata.SelectMany(b => b.Series).Select(m => new Series() { Name = m.Name }).ToList();
+
+            var seriesList = _context.Series.ToList();
+            seriesList = seriesList.Concat(_metadataSeriesCache).ToList();
+
+            foreach (var metadataSeries in metadataSeriesList)
+            {
+                var series = seriesList.FirstOrDefault(s =>
+                    s.Name == metadataSeries.Name || s.Aliases.Any(a => a.Name == metadataSeries.Name));
+                if (series == null) seriesList.Add(new Series() { Name = metadataSeries.Name });
             }
 
             return seriesList;

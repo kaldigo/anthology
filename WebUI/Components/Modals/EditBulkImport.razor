@@ -1,0 +1,130 @@
+﻿@using Anthology.WebUI.Components.Modals.AddEditBookTabs
+@using Anthology.Services
+@using Anthology.Data
+@using Microsoft.EntityFrameworkCore.Diagnostics
+@using Anthology.WebUI.Components.Elements
+
+@inject Anthology.Services.IPluginsService _pluginsService
+@inject Anthology.Services.IMetadataService _metadataService
+@inject MudBlazor.ISnackbar _snackBar
+
+<style>
+    .add-edit-book-dialog .mud-dialog-content {
+        padding: 0px 0px !important;
+    }
+
+    .add-edit-book-dialog .mud-dialog-actions {
+        box-shadow: 0px -2px 1px -1px rgba(0, 0, 0, 0.2), 0px -1px 1px 0px rgba(0, 0, 0, 0.14), 0px -1px 3px 0px rgba(0, 0, 0, 0.12);
+    }
+
+    .add-edit-book-dialog .tab-panel {
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+</style>
+
+@if (Loading)
+{
+    <MudDialog Class="add-edit-book-dialog">
+        <DialogContent>
+            <LoadingIndicator />
+        </DialogContent>
+    </MudDialog>
+}
+else
+{
+    <MudDialog Class="add-edit-book-dialog">
+        <DialogContent>
+            <MudTabs @ref="tabs" Elevation="1" Rounded="true" PanelClass="pa-6 tab-panel" DisableRipple="true">
+                <MudTabPanel ID="@("DetailsTab")" Text="Details">
+                    <Details @bind-Book="BookEdited" Classifications="Classifications" MetadataClassifications="MetadataClassifications" People="People" Series="Series" />
+                </MudTabPanel>
+                <MudTabPanel ID="@("MatchTab")" Text="Match" Style="max-height: 80vh; overflow-y: auto;">
+                    <MudText>Match</MudText>
+                    <MatchBook @bind-Book="BookEdited" BookMatched="@MatchBook" />
+                </MudTabPanel>
+            </MudTabs>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="Cancel">Cancel</MudButton>
+            <MudButton Color="Color.Primary" OnClick="RefreshMetadata">
+                @if (RefreshingMetadata)
+                {
+                    <MudProgressCircular Indeterminate Size="Size.Small" />
+            }
+                else
+                {
+                    @("Refresh Metadata")
+                }
+            </MudButton>
+            <MudButton Color="Color.Success" OnClick="SaveBook">Save Book</MudButton>
+        </DialogActions>
+    </MudDialog>
+}
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    MudTabs tabs;
+
+    [Parameter] public Book Book { get; set; }
+    [Parameter] public List<Classification> Classifications { get; set; }
+    [Parameter] public List<Classification> MetadataClassifications { get; set; }
+    [Parameter] public List<Person> People { get; set; }
+    [Parameter] public List<Series> Series { get; set; }
+
+    Data.Book BookEdited { get; set; }
+
+    bool Loading = true;
+    bool RefreshingMetadata = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (firstRender)
+        {
+            BookEdited = ((Book)Book).Clone();
+
+            await GetIdentifiers();
+
+            Loading = false;
+            Task.Delay(1).Wait();
+            StateHasChanged();
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void RefreshMetadata()
+    {
+        RefreshingMetadata = true;
+        Task.Delay(1).Wait();
+        StateHasChanged();
+
+        _metadataService.RefreshBookMetadata(BookEdited);
+        RefreshingMetadata = true;
+        Task.Delay(1).Wait();
+        StateHasChanged();
+    }
+
+    private void SaveBook()
+    {
+        BookEdited.Identifiers = BookEdited.Identifiers.Where(i => !string.IsNullOrWhiteSpace(i.Value)).ToList();
+
+        MudDialog.Close(DialogResult.Ok(BookEdited));
+    }
+
+    async Task GetIdentifiers()
+    {
+        foreach (var identifier in _pluginsService.GetPluginList().Select(p => p.Identifier).Distinct().Where(p => !string.IsNullOrWhiteSpace(p)).OrderBy(i => i))
+        {
+            if (!BookEdited.Identifiers.Any(b => b.Key == identifier)) BookEdited.Identifiers.Add(new BookIdentifier(identifier, ""));
+        }
+    }
+
+    void MatchBook()
+    {
+        tabs.ActivatePanel("DetailsTab");
+        RefreshMetadata();
+    }
+}

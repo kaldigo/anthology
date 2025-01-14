@@ -1,0 +1,276 @@
+﻿@page "/BulkImport"
+
+@using Anthology.Data
+@using Anthology.Plugins.Models
+@using Anthology.Services
+@using Anthology.WebUI.Components.Modals
+@using Anthology.WebUI.Components.Modals.AddEditBookTabs
+@using Anthology.WebUI.Components.Elements
+@using MudBlazor
+
+@inject IImportService _importService
+@inject IBookService _bookService
+@inject IPluginsService _pluginsService
+@inject IMetadataService _metadataService
+@inject IClassificationService _classificationService
+@inject IPersonService _personService
+@inject ISeriesService _seriesService
+@inject ISnackbar _snackBar
+@inject IDialogService _dialog
+@inject IJSRuntime JsRuntime
+
+<PageTitle>Bulk Import</PageTitle>
+
+<MudPaper Class="pa-4">
+
+    @if (ImportList == null)
+    {
+        <LoadingIndicator />
+    }
+    else
+    {
+        <MudStack Spacing="2">
+            <MudText Typo="Typo.h5">Bulk Import</MudText>
+            <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="ImportAll">
+                Import All
+            </MudButton>
+        </MudStack>
+        <MudTable T="ImportBook" Items="@ImportList" Hover="true" Bordered="false" Striped="false" FixedHeader="true" Height="@(TableHeight + "px")" Virtualize="true">
+            <HeaderContent>
+                <MudTh></MudTh>
+                <MudTh>Title</MudTh>
+                <MudTh>Authors</MudTh>
+                <MudTh>Series</MudTh>
+                @foreach (var pluginKey in AvailablePluginIdentifiers)
+                {
+                    <MudTh>@pluginKey</MudTh>
+                }
+                <MudTh>Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Import">
+                    <MudCheckBox @bind-Checked="@context.IsSelectedForImport" />
+                </MudTd>
+                <MudTd DataLabel="Title">@context.BookMetadata.Title</MudTd>
+                <MudTd DataLabel="Authors">@(string.Join(", ", context.BookMetadata.Authors))</MudTd>
+                <MudTd DataLabel="Series">@(string.Join(", ", context.BookMetadata.Series.Select(s => s.Name + (string.IsNullOrWhiteSpace(s.VolumeNumber) ? "" : " #" + s.VolumeNumber))))</MudTd>
+                @foreach (var pluginKey in AvailablePluginIdentifiers)
+                {
+                    @if (!context.Identifiers.Any(i => i.Key == pluginKey))
+                    {
+                        context.Identifiers.Add(new BookIdentifier(pluginKey, ""));
+                    }
+
+                    var identifier = context.Identifiers.FirstOrDefault(i => i.Key == pluginKey);
+                    <MudTd>
+                        <MudTextField @bind-Value="identifier.Value" Placeholder="Enter value" OnBlur="@(async (e) => await IdentifierLostFocus(context, pluginKey, identifier.Value))" />
+                    </MudTd>
+                }
+                <MudTd>
+                    <MudButton Variant="Variant.Filled" Size="Size.Small" OnClick="@(() => EditRow(context))">
+                        Edit
+                    </MudButton>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudPaper>
+
+@code {
+    List<ImportBook> ImportList { get; set; }
+
+    private List<Plugin> Plugins { get; set; }
+
+    private List<string> AvailablePluginIdentifiers { get; set; } = new List<string>();
+
+    int TableHeight = 0;
+
+
+    List<Classification> Classifications { get; set; }
+
+    List<Classification> MetadataClassifications { get; set; }
+
+    List<Person> People { get; set; }
+
+    List<Series> Series { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (firstRender)
+        {
+            await LoadData();
+
+        }
+    }
+
+    async Task LoadData()
+    {
+        Plugins = _pluginsService.GetPluginList();
+        AvailablePluginIdentifiers = Plugins
+        .Where(p => p.Type == Services.Plugin.PluginType.Metadata)
+        .Select(p => p.Identifier)
+        .Distinct()
+        .Where(p => !string.IsNullOrWhiteSpace(p))
+        .OrderBy(i => i)
+        .ToList();
+
+        var imports = await _importService.GetImportList();
+        ImportList = imports.Select(i =>
+        {
+            var book = new ImportBook() { BookMetadata = i.Metadata };
+            if (i.Identifiers != null && i.Identifiers.Count > 0)
+            {
+                book.Identifiers = i.Identifiers.Select(m => new BookIdentifier(m.Key, m.Value)).ToList();
+            }
+
+            return book;
+        })
+        .OrderBy(b => b.BookMetadata.Title)
+        .ToList();
+
+        var windowHeight = await JsRuntime.InvokeAsync<int>("getWindowHeight");
+
+        TableHeight = windowHeight - 135;
+
+        GetClassifications();
+        GetPeople();
+        GetSeries();
+
+        StateHasChanged();
+    }
+
+    private void GetClassifications()
+    {
+        Classifications = _classificationService.GetAllClassifications(ImportList.Cast<Book>().ToList());
+        MetadataClassifications = _classificationService.CleanClassification(
+        ImportList.SelectMany(book =>
+            book.BookMetadata.Genres.Select(g => new Classification()
+                {
+                    Name = g,
+                    Type = Classification.ClassificationType.Genre
+                })
+            .Concat(book.BookMetadata.Tags.Select(t => new Classification()
+                {
+                    Name = t,
+                    Type = Classification.ClassificationType.Tag
+                }))
+        ).ToList());
+    }
+
+    private void GetPeople()
+    {
+        People = _personService.GetAllPeople(ImportList.Cast<Book>().ToList());
+    }
+
+    private void GetSeries()
+    {
+        Series = _seriesService.GetAllSeries(ImportList.Cast<Book>().ToList());
+    }
+
+    async Task ImportAll()
+    {
+        var booksToImport = ImportList.Where(b => b.IsSelectedForImport).ToList();
+        _bookService.SaveBooks(booksToImport.Cast<Book>().ToList(), true, true);
+
+        ImportList = null;
+        Task.Delay(1).Wait();
+        StateHasChanged();
+
+        LoadData();
+    }
+
+    async Task EditRow(ImportBook importItem)
+    {
+        var parameters = new DialogParameters { ["Book"] = importItem, ["Classifications"] = Classifications, ["MetadataClassifications"] = MetadataClassifications, ["People"] = People, ["Series"] = Series };
+        var options = new DialogOptions() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true, NoHeader = true };
+
+        var dialog = _dialog.Show<EditBulkImport>("Edit Book Details", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var updatedBook = (Book)result.Data;
+
+            // Add any missing classifications
+            var newClassifications = updatedBook.Classifications
+                .Where(c => !Classifications.Any(existing => existing.Name == c.Name && existing.Type == c.Type))
+                .ToList();
+            Classifications.AddRange(newClassifications);
+
+            // Add any missing metadata classifications
+            var newMetadataClassifications = updatedBook.Classifications
+                .Where(c => !MetadataClassifications.Any(existing => existing.Name == c.Name && existing.Type == c.Type))
+                .ToList();
+            MetadataClassifications.AddRange(newMetadataClassifications);
+
+            // Add any missing people
+            var newAuthors = updatedBook.Authors
+                .Where(author => !People.Any(existing => existing.Name == author.Name))
+                .ToList();
+            People.AddRange(newAuthors);
+
+            // Add any missing people
+            var newNarrators = updatedBook.Narrators
+                .Where(author => !People.Any(existing => existing.Name == author.Name))
+                .ToList();
+            People.AddRange(newNarrators);
+
+            // Add any missing series
+            var newSeries = updatedBook.Series
+                .Where(series => !Series.Any(existing => existing.Name == series.Series.Name))
+                .Select(s => s.Series)
+                .ToList();
+            Series.AddRange(newSeries);
+
+            importItem.Update(updatedBook);
+            importItem.IsSelectedForImport = true;
+
+            StateHasChanged();
+        }
+    }
+
+    async Task IdentifierLostFocus(ImportBook context, string pluginKey, string newValue)
+    {
+        var identifier = context.Identifiers.FirstOrDefault(i => i.Key == pluginKey);
+        if (identifier != null)
+        {
+            identifier.Value = newValue;
+        }
+        context.IsSelectedForImport = true;
+
+        _ = UpdateMetadata(context, pluginKey, newValue);
+    }
+
+    async Task UpdateMetadata(Book book, string pluginKey, string newValue)
+    {
+        await Task.Run(async () =>
+        {
+            try
+            {
+                await _metadataService.RefreshBookMetadata(book);
+                await InvokeAsync(StateHasChanged);
+            }
+            catch (Exception ex)
+            {
+            }
+        });
+    }
+
+    public class ImportBook : Book
+    {
+        public bool IsSelectedForImport { get; set; } = false; // Default to not selected
+        public List<SearchModel> Search { get; set; } = new();
+
+        public class SearchModel
+        {
+            public string Identifier { get; set; }
+            public bool IsSearching { get; set; } = false; // Indicates if a search is in progress
+            public bool StartedSearch { get; set; } = false; // Indicates if a search was started
+            public List<MetadataSearchResult> Results { get; set; }
+        }
+    }
+
+
+}

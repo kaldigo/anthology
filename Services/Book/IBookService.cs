@@ -15,6 +15,7 @@ namespace Anthology.Services
         Task<List<Book>> GetBooksAsync();
         List<Book> GetBooksWithStatus();
         Task<List<Book>> GetBooksWithStatusAsync();
+        void SaveBooks(List<Book> book, bool updateMetadata = false, bool metadataRefreshed = false);
         void SaveBook(Book book, bool updateMetadata = false, bool metadataRefreshed = false);
         void DeleteBook(string isbn);
     }

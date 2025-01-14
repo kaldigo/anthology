@@ -83,6 +83,27 @@ namespace Anthology.Services
             return allClassifications;
         }
 
+        public List<Classification> GetAllClassifications(List<Book> books)
+        {
+            if (_isCached == false) RefreshMetadataClassifications();
+
+            var bookMetadata = books.Select(b => b.BookMetadata).ToList();
+
+            var metadataGenres = bookMetadata.SelectMany(b => b.Genres).Select(g => new Classification()
+            { Name = g, Type = Classification.ClassificationType.Genre });
+
+            var metadataTags = bookMetadata.SelectMany(b => b.Tags).Select(t => new Classification()
+            { Name = t, Type = Classification.ClassificationType.Tag });
+
+            var metadataClassifications = CleanClassification(metadataGenres.Concat(metadataTags).Concat(_metadataClassificationsCache).ToList());
+
+            var dbClassifications = _context.Classifications.ToList();
+            var allClassifications = dbClassifications.Concat(metadataClassifications).DistinctBy(c => c.Name)
+                .ToList();
+
+            return allClassifications;
+        }
+
         public Classification GetClassification(Guid guid)
         {
             return _context.Classifications.First(c => c.ID == guid);

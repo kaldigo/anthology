@@ -11,6 +11,7 @@ namespace Anthology.Services
         List<Person> GetPeople();
         void RefreshMetadataPeople();
         List<Person> GetAllPeople(Metadata metadata = null);
+        List<Person> GetAllPeople(List<Book> books);
         void SavePerson(Person person, bool newPerson = false);
         List<Person> CleanPeople(List<Person> people);
 

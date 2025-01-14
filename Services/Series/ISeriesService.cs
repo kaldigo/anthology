@@ -8,6 +8,7 @@ namespace Anthology.Services
         List<Series> GetSeries();
         void RefreshMetadataSeries();
         List<Series> GetAllSeries(Metadata metadata = null);
+        List<Series> GetAllSeries(List<Book> books);
         Series GetSeries(Guid guid);
         Series? GetSeries(string name);
         void SaveSeries(Series series, bool newSeries = false);

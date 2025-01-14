@@ -11,6 +11,7 @@ namespace Anthology.Services
         List<Classification> GetClassifications();
         void RefreshMetadataClassifications();
         List<Classification> GetAllClassifications(Metadata metadata = null);
+        List<Classification> GetAllClassifications(List<Book> books);
         void SaveClassification(Classification classification, bool newClassification = false);
         List<Classification> CleanClassification(List<Classification> classifications);
 

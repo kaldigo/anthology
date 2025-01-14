@@ -84,6 +84,23 @@ namespace Anthology.Services
             return book;
         }
 
+        public void SaveBooks(List<Book> books, bool updateMetadata = false, bool metadataRefreshed = false)
+        {
+            Task.Run(async () =>
+            {
+                foreach (var book in books)
+                {
+                    SaveBook(book, updateMetadata, false);
+                }
+
+                // Optional: Wait for all metadata refreshes to complete if necessary
+                if (updateMetadata || metadataRefreshed)
+                {
+                    _metadataService.RefreshMetadataCache();
+                }
+            });
+        }
+
         public void SaveBook(Book book, bool updateMetadata = false, bool metadataRefreshed = false)
         {
             // Synchronous portion
