@@ -1,6 +1,6 @@
 ﻿<MudAutocomplete Class="@AutocompleteClass" T="string" @ref="_autocomplete" @bind-Value="@Value" SearchFunc="@SearchFunc" Adornment="Adornment.None"
-                 CoerceValue="true" SelectValueOnTab="true" DisableUnderLine="@DisableUnderLine" ResetValueOnEmptyText="true" Variant="@Variant"
-                 IsOpenChanged="AddSelectedOption" OnKeyUp="AddNewOption" />
+                 CoerceValue="false" SelectValueOnTab="true" DisableUnderLine="@DisableUnderLine" ResetValueOnEmptyText="true" Variant="@Variant"
+                 IsOpenChanged="AddSelectedOption" OnKeyUp="AddNewOptionAsync" />
 
 @code {
 
@@ -40,10 +40,25 @@
         AutocompleteClass = "flex-grow-1 flex-shrink-1 " + Class;
     }
 
-    void AddNewOption(KeyboardEventArgs keyboardEvent)
+    async Task AddNewOptionAsync(KeyboardEventArgs keyboardEvent)
     {
         if (keyboardEvent.Code == "Enter")
         {
+            var currentValue = _autocomplete.Value;
+
+            if (!string.IsNullOrEmpty(currentValue))
+            {
+                // Fetch suggestions asynchronously
+                var suggestions = await SearchFunc.Invoke(currentValue);
+
+                // Always use the current value regardless of suggestions
+                await SelectOption.InvokeAsync(currentValue);
+
+                if (ClearOnSelect)
+                    _autocomplete.Clear();
+            }
+
+            // Ensure the dropdown menu is toggled as needed
             _autocomplete.ToggleMenu();
         }
     }
@@ -54,8 +69,8 @@
         {
             SelectOption.InvokeAsync(_autocomplete.Value);
 
-            if (ClearOnSelect) _autocomplete.Clear();
+            if (ClearOnSelect)
+                _autocomplete.Clear();
         }
     }
-
 }
