@@ -35,8 +35,8 @@ else
         <RowTemplate>
             <MudTd DataLabel="Title">@context.Metadata.Title</MudTd>
             <MudTd DataLabel="Authors">@(string.Join(", ", context.Metadata.Authors))</MudTd>
-                <MudTd DataLabel="Series">@(string.Join(", ", context.Metadata.Series.Select(s => s.Name + (string.IsNullOrWhiteSpace(s.VolumeNumber) ? "" : " #" + s.VolumeNumber))))</MudTd>
-                <MudTd DataLabel="Identifiers">@(string.Join(", ", context.Identifiers.Where(i => i.Key != "ISBN").Select(i => i.Key + ": " + i.Value )))</MudTd>
+            <MudTd DataLabel="Series">@(string.Join(", ", context.Metadata.Series.Select(s => s.Name + (string.IsNullOrWhiteSpace(s.VolumeNumber) ? "" : " #" + s.VolumeNumber))))</MudTd>
+            <MudTd DataLabel="Identifiers">@(string.Join(", ", context.Identifiers.Where(i => i.Key != "ISBN").Select(i => i.Key + ": " + i.Value)))</MudTd>
             <MudTd></MudTd>
         </RowTemplate>
         <PagerContent>
@@ -111,6 +111,9 @@ else
         var dialog = await _dialog.ShowAsync<AddEditBook>("Import Book", parameters, options);
         var result = await dialog.Result;
 
-        LoadData();
+        if (!result.Cancelled)
+        {
+            LoadData();
+        }
     }
 }
