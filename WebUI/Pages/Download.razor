@@ -91,11 +91,27 @@ else
         else
         {
             var book = BookList.First(b => b.Identifiers.Any(i => i.Key == download.Key && i.Value == download.Identifier));
-            book.Identifiers.Add(new BookIdentifier(download.Key, download.Identifier));
+
+            // Check if an identifier with the given key already exists
+            var existingIdentifier = book.Identifiers.FirstOrDefault(i => i.Key == download.Key);
+
+            if (existingIdentifier != null)
+            {
+                // Update the existing identifier's value
+                existingIdentifier.Value = download.Identifier;
+            }
+            else
+            {
+                // Add a new identifier if no matching key is found
+                book.Identifiers.Add(new BookIdentifier(download.Key, download.Identifier));
+            }
+
             _bookService.SaveBook(book);
+
             Task.Run(() => StartBookDownload(download));
         }
     }
+
 
     async Task StartBookDownload(Plugins.Models.Download download)
     {
@@ -105,18 +121,18 @@ else
     async Task ShowAddEditBookDialog(Plugins.Models.Download download)
     {
         var book = new Book()
-        {
-            Identifiers = new List<BookIdentifier>()
+            {
+                Identifiers = new List<BookIdentifier>()
             {
                 new BookIdentifier(download.Key, download.Identifier)
             },
-            BookMetadata = new Metadata()
-            {
-                Title = download.Title,
-                Authors = download.Author,
-                Covers = new List<string>(){ download.ImageURL }
-            }
-        };
+                BookMetadata = new Metadata()
+                {
+                    Title = download.Title,
+                    Authors = download.Author,
+                    Covers = new List<string>() { download.ImageURL }
+                }
+            };
 
         var parameters = new DialogParameters { ["Book"] = book, ["IsNewBook"] = true, ["BookService"] = _bookService };
         var options = new DialogOptions() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true, NoHeader = true };
@@ -142,8 +158,21 @@ else
         if (!result.Cancelled && result.Data != null)
         {
             var book = (Data.Book)result.Data;
-            if (book.Identifiers.Any(i => i.Key == download.Key)) book.Identifiers.First(i => i.Key == download.Key).Value = download.Identifier;
-            else book.Identifiers.Add(new BookIdentifier(download.Key, download.Identifier));
+
+            // Check if an identifier with the given key already exists
+            var existingIdentifier = book.Identifiers.FirstOrDefault(i => i.Key == download.Key);
+
+            if (existingIdentifier != null)
+            {
+                // Update the existing identifier's value
+                existingIdentifier.Value = download.Identifier;
+            }
+            else
+            {
+                // Add a new identifier if no matching key is found
+                book.Identifiers.Add(new BookIdentifier(download.Key, download.Identifier));
+            }
+
             _bookService.SaveBook(book);
 
             StateHasChanged();
