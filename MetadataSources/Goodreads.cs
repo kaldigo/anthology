@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using static Anthology.Plugins.MetadataSources.Goodreads;
 using System.Reflection.PortableExecutable;
 using Newtonsoft.Json.Linq;
+using System.Runtime.Caching;
 
 namespace Anthology.Plugins.MetadataSources
 {
@@ -23,6 +24,8 @@ namespace Anthology.Plugins.MetadataSources
         public string IdentifierKey => "GRID";
 
         public List<string> Settings => new List<string>() { };
+
+        private readonly ObjectCache _cache = MemoryCache.Default;
 
         public Metadata PerformGetMetadata(string identifier, Dictionary<string, string> settings)
         {
@@ -165,6 +168,14 @@ namespace Anthology.Plugins.MetadataSources
 
         private Book GetBook(string url)
         {
+            // Check cache
+            var cacheKey = "Goodreads_Book_" + url;
+            if (_cache.Contains(cacheKey))
+            {
+                return (Book)_cache.Get(cacheKey);
+            }
+
+
             var client = new HttpClient();
             var request = new HttpRequestMessage(HttpMethod.Post, "https://biblioreads.kaldigo.co.uk/api/book-scraper");
             var content = new StringContent("{\"queryURL\":\"https://www.goodreads.com" + url + "\"}", null, "application/json");
@@ -191,6 +202,10 @@ namespace Anthology.Plugins.MetadataSources
             }
 
             var book = JsonConvert.DeserializeObject<Book>(response.Content.ReadAsStringAsync().Result);
+
+            // Add to cache
+            var cacheItemPolicy = new CacheItemPolicy { AbsoluteExpiration = DateTimeOffset.Now.AddMinutes(10) };
+            _cache.Add(cacheKey, book, cacheItemPolicy);
 
             return book;
 
