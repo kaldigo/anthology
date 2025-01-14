@@ -1,4 +1,5 @@
 ﻿@page "/Download"
+@using Anthology.Plugins
 @using Anthology.WebUI.Components.Elements
 @using Anthology.WebUI.Components.Modals
 @using Anthology.Data
@@ -39,9 +40,26 @@ else
 
 @code
 {
+    private Dictionary<string, MudBlazor.Snackbar> _activeDownloadSnackbars = new();
+
     List<Plugins.Models.Download> DownloadList { get; set; }
     List<Data.Book> BookList { get; set; }
     bool FilterMissing { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _downloadService.OnDownloadProgressChanged += OnDownloadProgressChanged;
+
+        foreach (var dl in _downloadService.ActiveDownloads)
+        {
+            var snack = _snackBar.Add(
+                $"\"{dl.Title}\" - Already Downloading",
+                MudBlazor.Severity.Normal,
+                cfg => cfg.RequireInteraction = true
+            );
+            _activeDownloadSnackbars[dl.Identifier] = snack;
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -49,14 +67,14 @@ else
 
         if (firstRender)
         {
-            await LoadData();
+            await LoadData(true);
 
         }
     }
 
-    async Task LoadData()
+    async Task LoadData(bool initRun = false)
     {
-        DownloadList = await _downloadService.GetDownloadList();
+        if(initRun) DownloadList = await _downloadService.GetDownloadList();
         BookList = await _bookService.GetBooksWithStatusAsync();
         StateHasChanged();
     }
@@ -140,6 +158,8 @@ else
         var dialog = await _dialog.ShowAsync<AddEditBook>("Download Book", parameters, options);
         var result = await dialog.Result;
 
+        await LoadData();
+
         StateHasChanged();
 
         if (result != null && (string)result.Data == "Added") Task.Run(() => StartBookDownload(download));
@@ -155,7 +175,7 @@ else
         var dialog = await _dialog.ShowAsync<MatchToBook>("Match Book", parameters, options);
         var result = await dialog.Result;
 
-        if (!result.Cancelled && result.Data != null)
+        if (!result.Canceled && result.Data != null)
         {
             var book = (Data.Book)result.Data;
 
@@ -175,6 +195,8 @@ else
 
             _bookService.SaveBook(book);
 
+            await LoadData();
+
             StateHasChanged();
         }
     }
@@ -182,6 +204,85 @@ else
     void ToggleFilterMissing()
     {
         FilterMissing = !FilterMissing;
+    }
+
+    private async void OnDownloadProgressChanged(DownloadProgressEventArgs args)
+    {
+        MudBlazor.Severity severity;
+        switch (args.Status)
+        {
+            case "Queued":
+                severity = MudBlazor.Severity.Normal;
+                break;
+            case "Fetching Download Link":
+                severity = MudBlazor.Severity.Info;
+                break;
+            case "Downloading":
+                severity = MudBlazor.Severity.Warning;
+                break;
+            case "Extracting":
+                severity = MudBlazor.Severity.Warning;
+                break;
+            case "Complete":
+                severity = MudBlazor.Severity.Success;
+                break;
+            case "Error":
+                severity = MudBlazor.Severity.Error;
+                break;
+            default:
+                severity = MudBlazor.Severity.Warning;
+                break;
+        }
+
+        bool requireInteraction = true;
+        if (args.Status.Equals("Complete", StringComparison.OrdinalIgnoreCase)
+            || args.Status.Equals("Error", StringComparison.OrdinalIgnoreCase))
+        {
+            requireInteraction = false;
+        }
+
+        // If we do not have a snackbar yet for this Download, create one
+        if (!_activeDownloadSnackbars.TryGetValue(args.Download.Identifier, out var existingSnackbar))
+        {
+            existingSnackbar = _snackBar.Add(
+                $"\"{args.Download.Title}\" - {args.Status}",
+                severity,
+                cfg =>
+                {
+                    // keep it on screen until we manually close
+                    cfg.RequireInteraction = true;
+                }
+            );
+            _activeDownloadSnackbars[args.Download.Identifier] = existingSnackbar;
+        }
+        else
+        {
+            // If a snackbar exists, close it to replace with an updated status
+            _snackBar.Remove(existingSnackbar);
+            var newSnackbar = _snackBar.Add(
+                $"\"{args.Download.Title}\" - {args.Status}",
+                severity,
+                cfg =>
+                {
+                    cfg.RequireInteraction = true;
+                }
+            );
+            _activeDownloadSnackbars[args.Download.Identifier] = newSnackbar;
+        }
+
+        // If the plugin reported "Complete" or "Error", we can close the snackbar right away
+        if (args.Status.Equals("Complete", StringComparison.OrdinalIgnoreCase)
+            || args.Status.Equals("Error", StringComparison.OrdinalIgnoreCase))
+        {
+
+            if (_activeDownloadSnackbars.TryGetValue(args.Download.Identifier, out var finishedSnack))
+            {
+                _activeDownloadSnackbars.Remove(args.Download.Identifier);
+            }
+        }
+
+        // Force a UI refresh
+        InvokeAsync(StateHasChanged);
     }
 
     class DownloadItem

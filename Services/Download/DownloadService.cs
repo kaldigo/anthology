@@ -10,6 +10,11 @@ namespace Anthology.Services
         ISettingsService _settingsService;
         IBookService _bookService;
 
+        public event Action<DownloadProgressEventArgs> OnDownloadProgressChanged;
+
+        private readonly List<Download> _activeDownloads = new List<Download>();
+        public List<Download> ActiveDownloads => _activeDownloads;
+
         public DownloadService(IPluginsService pluginsService, ISettingsService settingsService, IBookService bookService)
         {
             _pluginsService = pluginsService;
@@ -26,7 +31,7 @@ namespace Anthology.Services
             {
                 var downloadInstance = Activator.CreateInstance(plugin.ClassType) as IDownloadSource;
                 var downloadSettings = _settingsService.GetSettings().PluginSettings.Where(s => s.PluginName == plugin.Name).SelectMany(s => s.Settings).ToDictionary(s => s.Key, s => s.Value);
-                
+
                 downloadList.AddRange(downloadInstance.GetDownloadList(downloadSettings));
             }
 
@@ -35,21 +40,37 @@ namespace Anthology.Services
 
         public async Task DownloadBook(Download download)
         {
-
-            var book = _bookService.GetBooks().FirstOrDefault(b => b.Identifiers.Any(i => i.Key == download.Key && i.Value == download.Identifier));
-            if (book != null)
+            ActiveDownloads.Add(download);
+            try
             {
-                download.Title = string.IsNullOrWhiteSpace(book.Title) ? book.BookMetadata.Title : book.Title;
-                download.Author = book.Authors.Count == 0 ? book.BookMetadata.Authors : book.Authors.Select(a => a.Name).ToList();
+                var book = _bookService.GetBooks().FirstOrDefault(b => b.Identifiers.Any(i => i.Key == download.Key && i.Value == download.Identifier));
+                if (book != null)
+                {
+                    download.Title = string.IsNullOrWhiteSpace(book.Title) ? book.BookMetadata.Title : book.Title;
+                    download.Author = book.Authors.Count == 0 ? book.BookMetadata.Authors : book.Authors.Select(a => a.Name).ToList();
+                }
+
+                var plugin = _pluginsService.GetPluginList().FirstOrDefault(p => p.Type == Plugin.PluginType.Download && p.Identifier == download.Key);
+                if (plugin == null) throw new NullReferenceException();
+
+                var downloadInstance = Activator.CreateInstance(plugin.ClassType) as IDownloadSource;
+                var downloadSettings = _settingsService.GetSettings().PluginSettings.Where(s => s.PluginName == plugin.Name).SelectMany(s => s.Settings).ToDictionary(s => s.Key, s => s.Value);
+
+                // Subscribe once
+                downloadInstance.OnDownloadProgressChanged += (args) =>
+                {
+                    // Relay the event back to anyone listening to *this* service
+                    OnDownloadProgressChanged?.Invoke(args);
+                };
+
+                downloadInstance.DownloadBook(download, Utils.FileUtils.GetDownloadPath(), downloadSettings);
+                ActiveDownloads.Remove(download);
             }
-
-            var plugin = _pluginsService.GetPluginList().FirstOrDefault(p => p.Type == Plugin.PluginType.Download && p.Identifier == download.Key);
-            if (plugin == null) throw new NullReferenceException();
-
-            var downloadInstance = Activator.CreateInstance(plugin.ClassType) as IDownloadSource;
-            var downloadSettings = _settingsService.GetSettings().PluginSettings.Where(s => s.PluginName == plugin.Name).SelectMany(s => s.Settings).ToDictionary(s => s.Key, s => s.Value);
-
-            downloadInstance.DownloadBook(download, Utils.FileUtils.GetDownloadPath(), downloadSettings);
+            catch
+            {
+                ActiveDownloads.Remove(download);
+                throw;
+            }
         }
     }
 }

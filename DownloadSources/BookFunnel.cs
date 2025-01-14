@@ -25,6 +25,8 @@ namespace Anthology.Plugins.DownloadSources
         private static Task _extractTask;
         private static readonly List<Download> _extractQueue = new List<Download>();
 
+        public event Action<DownloadProgressEventArgs> OnDownloadProgressChanged;
+
         #region IDownloadSource Implementation
 
         public bool DownloadBook(Download download, string mediaPath, Dictionary<string, string> settings)
@@ -48,6 +50,11 @@ namespace Anthology.Plugins.DownloadSources
             // If a new download was passed, add it if not already in the queue
             if (download != null && !_downloadQueue.Select(d => d.Identifier).Contains(download.Identifier))
             {
+                OnDownloadProgressChanged?.Invoke(new DownloadProgressEventArgs
+                {
+                    Download = download,
+                    Status = "Queued"
+                });
                 _downloadQueue.Add(download);
             }
 
@@ -69,6 +76,12 @@ namespace Anthology.Plugins.DownloadSources
             // Start the download process
             _downloadTask = Task.Factory.StartNew(() =>
             {
+                OnDownloadProgressChanged?.Invoke(new DownloadProgressEventArgs
+                {
+                    Download = download,
+                    Status = "Fetching Download Link"
+                });
+
                 var browser = new BrowserSession();
                 Login(browser, settings);
 
@@ -81,6 +94,12 @@ namespace Anthology.Plugins.DownloadSources
 
                 using (var client = new WebClient())
                 {
+                    OnDownloadProgressChanged?.Invoke(new DownloadProgressEventArgs
+                    {
+                        Download = download,
+                        Status = "Downloading"
+                    });
+
                     client.DownloadFile(downloadUrl, zipPath);
                 }
             });
@@ -89,9 +108,20 @@ namespace Anthology.Plugins.DownloadSources
             _downloadTask.Wait();
 
             // Once downloaded, extract the book
+            OnDownloadProgressChanged?.Invoke(new DownloadProgressEventArgs
+            {
+                Download = download,
+                Status = "Extracting"
+            });
+
             ExtractBookTask(mediaPath, currentDownload);
 
             // Remove from queue
+            OnDownloadProgressChanged?.Invoke(new DownloadProgressEventArgs
+            {
+                Download = download,
+                Status = "Complete"
+            });
             _downloadQueue.Remove(currentDownload);
 
             // If there are more downloads, recursively process them
