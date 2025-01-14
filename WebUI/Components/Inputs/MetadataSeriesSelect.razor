@@ -4,7 +4,6 @@
 @inject MudBlazor.IDialogService _dialog
 
 <style>
-
     .metadatamultiselect-container {
         padding: 8px 14px;
         width: 100%;
@@ -27,7 +26,6 @@
             .metadatamultiselect-container .add-icon svg {
                 margin: 0px;
             }
-
 </style>
 
 <div class="mud-input-control mud-input-control-margin-dense mud-input-input-control metadatamultiselect">
@@ -36,24 +34,34 @@
             <div class="metadatamultiselect-container d-flex flex-wrap gap-2">
                 @foreach (var selectedOption in SelectValue)
                 {
-                    var optionName = selectedOption.Series.Name + (string.IsNullOrWhiteSpace(selectedOption.Sequence) ? "" : " #" + selectedOption.Sequence);
-                    <MudChip Class="ma-0" Color="Color.Primary" Size="Size.Small" Text="@optionName" Value="@selectedOption" OnClick="@(() => ShowAddEditBookSeriesDialog(selectedOption))" OnClose="RemoveSelectedOption" />
+                    var optionName = selectedOption.Series.Name +
+                    (string.IsNullOrWhiteSpace(selectedOption.Sequence) ? "" : " #" + selectedOption.Sequence);
+                    <MudChip Class="ma-0" Color="Color.Primary" Size="Size.Small" Text="@optionName"
+                             Value="@selectedOption"
+                             OnClick="@(() => ShowAddEditBookSeriesDialog(selectedOption))"
+                             OnClose="RemoveSelectedOption" />
                 }
-                <MudChip Class="ma-0 add-icon" Color="Color.Primary" Size="Size.Small" Icon="@Icons.Material.Filled.Add" OnClick="@(() => ShowAddEditBookSeriesDialog())" />
+                <MudChip Class="ma-0 add-icon" Color="Color.Primary" Size="Size.Small"
+                         Icon="@Icons.Material.Filled.Add"
+                         OnClick="@(() => ShowAddEditBookSeriesDialog())" />
             </div>
-            <div class="mud-input-slot mud-input-root mud-input-root-outlined mud-input-root-margin-dense" style="display: none" tabindex="-1"></div>
+            <div class="mud-input-slot mud-input-root mud-input-root-outlined mud-input-root-margin-dense"
+                 style="display: none" tabindex="-1"></div>
             <div class="mud-input-outlined-border"></div>
         </div>
-        <label class="mud-input-label mud-input-label-animated mud-input-label-outlined mud-input-label-margin-dense mud-input-label-inputcontrol">@Label</label>
+        <label class="mud-input-label mud-input-label-animated mud-input-label-outlined
+                     mud-input-label-margin-dense mud-input-label-inputcontrol">@Label</label>
     </div>
-    @if (!(_selectValue.Count == MetadataValue.Count && _selectValue.All(s => MetadataValue.Any(m => m.Series.Name == s.Series.Name && m.Sequence == s.Sequence))) && _selectValue.Count != 0)
+    @if (!(_selectValue.Count == MetadataValue.Count &&
+    _selectValue.All(s => MetadataValue.Any(m => m.Series.Name == s.Series.Name && m.Sequence == s.Sequence)))
+    && _selectValue.Count != 0)
     {
-
         <div class="mud-input-control-helper-container px-2">
             <p class="mud-input-helper-text">
                 <div class="d-flex">
                     <div class="me-auto">
-                        @string.Join(", ",(MetadataValue.Select(s => s.Series.Name + (string.IsNullOrWhiteSpace(s.Sequence) ? "" : " #" + s.Sequence))))
+                        @string.Join(", ", MetadataValue.Select(s =>
+                                 s.Series.Name + (string.IsNullOrWhiteSpace(s.Sequence) ? "" : " #" + s.Sequence)))
                     </div>
                 </div>
             </p>
@@ -65,19 +73,21 @@
     [Parameter]
     public string Label { get; set; }
 
-    public List<BookSeries> _selectValue { get; set; } = new();
+    private List<BookSeries> _selectValue = new();
     [Parameter]
     public List<BookSeries> SelectValue
     {
-        get => _selectValue.Count == 0 ? MetadataValue.OrderByDescending(s => s.Series.Name).ToList() : _selectValue.OrderByDescending(s => s.Series.Name).ToList();
+        get => _selectValue.Count > 0 ? _selectValue : MetadataValue.OrderByDescending(s => s.Series.Name).ToList();
         set
         {
-            if (Equals(_selectValue, value) || ((_selectValue != null && _selectValue.Count == 0) && value.Count == 0)) return;
-            _selectValue = value;
-            if ((value.Count == MetadataValue.Count && value.All(s => MetadataValue.Any(m => m.Series.Name == s.Series.Name && m.Sequence == s.Sequence))) || value.Count == 0) SelectValueChanged.InvokeAsync(new List<BookSeries>());
-            else SelectValueChanged.InvokeAsync(value);
+            if (!Equals(_selectValue, value))
+            {
+                _selectValue = value;
+                SelectValueChanged.InvokeAsync(value);
+            }
         }
     }
+
     [Parameter]
     public EventCallback<List<BookSeries>> SelectValueChanged { get; set; }
 
@@ -89,36 +99,48 @@
 
     async Task ShowAddEditBookSeriesDialog(Data.BookSeries bookSeries = null)
     {
-        var parameters = new DialogParameters { ["Series"] = bookSeries == null ? "" : bookSeries.Series.Name, ["Sequence"] = bookSeries == null ? "" : bookSeries.Sequence, ["IsNewBookSeries"] = bookSeries == null, ["ExistingSeries"] = ExistingValues };
-        var options = new DialogOptions() { MaxWidth = MaxWidth.Medium, CloseOnEscapeKey = true, };
+        var parameters = new DialogParameters
+            {
+                ["Series"] = bookSeries?.Series.Name ?? "",
+                ["Sequence"] = bookSeries?.Sequence ?? "",
+                ["IsNewBookSeries"] = bookSeries == null,
+                ["ExistingSeries"] = ExistingValues
+            };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, CloseOnEscapeKey = true };
 
         var dialog = await _dialog.ShowAsync<AddEditBookSeries>(bookSeries == null ? "New Series" : "Edit Series", parameters, options);
         var result = await dialog.Result;
 
         if (!result.Cancelled)
         {
-            var series = ExistingValues.FirstOrDefault(s => s.Name == ((BookSeries)(result.Data)).Series.Name);
-            if (series == null)
+            var newSeries = (BookSeries)result.Data;
+            var series = ExistingValues.FirstOrDefault(s => s.Name == newSeries.Series.Name)
+                         ?? new Series(newSeries.Series.Name);
+
+            if (!ExistingValues.Contains(series))
             {
-                series = new Series(((BookSeries)(result.Data)).Series.Name);
                 ExistingValues.Add(series);
             }
-            var sequence = ((BookSeries)(result.Data)).Sequence;
 
-            var newSelectValue = SelectValue.ToList();
+            var updatedList = SelectValue.ToList();
             if (bookSeries != null)
             {
-                newSelectValue = SelectValue.Where(s => s.Series.Name != ((BookSeries)result.Data).Series.Name && s.Sequence != ((BookSeries)result.Data).Sequence).ToList();
-
+                updatedList = updatedList
+                    .Where(s => !(s.Series.Name == bookSeries.Series.Name && s.Sequence == bookSeries.Sequence))
+                    .ToList();
             }
-            var option = new BookSeries(series, sequence);
-            SelectValue = newSelectValue.Concat(new List<BookSeries>() { option }).ToList();
+
+            updatedList.Add(new BookSeries(series, newSeries.Sequence));
+            SelectValue = updatedList;
         }
     }
 
     void RemoveSelectedOption(MudChip chip)
     {
-        SelectValue = SelectValue.Where(s => s.Series.Name != ((BookSeries)chip.Value).Series.Name && s.Sequence != ((BookSeries)chip.Value).Sequence).ToList();
+        var toRemove = (BookSeries)chip.Value;
+        SelectValue = SelectValue
+            .Where(s => !(s.Series.Name == toRemove.Series.Name && s.Sequence == toRemove.Sequence))
+            .ToList();
     }
-
 }
