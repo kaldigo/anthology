@@ -59,6 +59,7 @@ namespace Anthology.Plugins.LibrarySources
                 {
                     var identifiers = new List<KeyValuePair<string, string>>();
                     if (!string.IsNullOrWhiteSpace(b.media.metadata.isbn)) identifiers.Add(new KeyValuePair<string, string>("ISBN", b.media.metadata.isbn));
+                    identifiers.Add(new KeyValuePair<string, string>(IdentifierKey, b.id));
                     return new ImportItem()
                     {
                         Key = IdentifierKey,
