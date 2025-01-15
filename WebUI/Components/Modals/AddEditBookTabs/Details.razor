@@ -193,7 +193,11 @@
         var metadataSeriesList = new List<BookSeries>();
         foreach (var metadataSeries in Book.BookMetadata.Series)
         {
-            var series = Series.First(s => s.Name == metadataSeries.Name || s.Aliases.Any(a => a.Name == metadataSeries.Name));
+            var series = Series.FirstOrDefault(s => s.Name == metadataSeries.Name || s.Aliases.Any(a => a.Name == metadataSeries.Name));
+            if (series == null)
+            {
+                series = new Series() { Name = metadataSeries.Name };
+            }
             metadataSeriesList.Add(new BookSeries(){Book = Book, Series = series, Sequence = metadataSeries.VolumeNumber});
         }
         MetadataSeries = metadataSeriesList;

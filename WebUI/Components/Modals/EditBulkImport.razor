@@ -51,7 +51,7 @@ else
                 @if (RefreshingMetadata)
                 {
                     <MudProgressCircular Indeterminate Size="Size.Small" />
-            }
+                }
                 else
                 {
                     @("Refresh Metadata")
@@ -95,14 +95,14 @@ else
 
     private void Cancel() => MudDialog.Cancel();
 
-    private void RefreshMetadata()
+    async Task RefreshMetadata()
     {
         RefreshingMetadata = true;
         Task.Delay(1).Wait();
         StateHasChanged();
 
-        _metadataService.RefreshBookMetadata(BookEdited);
-        RefreshingMetadata = true;
+        await _metadataService.RefreshBookMetadata(BookEdited);
+        RefreshingMetadata = false;
         Task.Delay(1).Wait();
         StateHasChanged();
     }
@@ -122,9 +122,9 @@ else
         }
     }
 
-    void MatchBook()
+    async Task MatchBook()
     {
         tabs.ActivatePanel("DetailsTab");
-        RefreshMetadata();
+        await RefreshMetadata();
     }
 }

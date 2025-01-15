@@ -23,7 +23,7 @@
 
 <MudPaper Class="pa-4">
 
-    @if (ImportList == null)
+    @if (IsLoading || ImportList == null)
     {
         <LoadingIndicator />
     }
@@ -94,12 +94,18 @@
 
     List<Series> Series { get; set; }
 
+    private bool IsLoading = false;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         await base.OnAfterRenderAsync(firstRender);
 
         if (firstRender)
         {
+
+            var windowHeight = await JsRuntime.InvokeAsync<int>("getWindowHeight");
+            TableHeight = windowHeight - 135;
+
             await LoadData();
 
         }
@@ -130,15 +136,11 @@
         .OrderBy(b => b.BookMetadata.Title)
         .ToList();
 
-        var windowHeight = await JsRuntime.InvokeAsync<int>("getWindowHeight");
-
-        TableHeight = windowHeight - 135;
+        await InvokeAsync(StateHasChanged);
 
         GetClassifications();
         GetPeople();
         GetSeries();
-
-        StateHasChanged();
     }
 
     private void GetClassifications()
@@ -171,14 +173,25 @@
 
     async Task ImportAll()
     {
-        var booksToImport = ImportList.Where(b => b.IsSelectedForImport).ToList();
-        _bookService.SaveBooks(booksToImport.Cast<Book>().ToList(), true, true);
+        // Show spinner
+        IsLoading = true;
 
-        ImportList = null;
-        Task.Delay(1).Wait();
         StateHasChanged();
 
-        LoadData();
+        await Task.Yield();
+
+        try
+        {
+            var booksToImport = ImportList.Where(b => b.IsSelectedForImport).ToList();
+            _bookService.SaveBooks(booksToImport.Cast<Book>().ToList(), true, true);
+
+            await LoadData();
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
     }
 
     async Task EditRow(ImportBook importItem)
