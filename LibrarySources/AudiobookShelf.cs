@@ -88,7 +88,7 @@ namespace Anthology.Plugins.LibrarySources
             public int numMissingParts { get; set; }
             public int numInvalidAudioFiles { get; set; }
             public double duration { get; set; }
-            public int size { get; set; }
+            public long size { get; set; }
             public object ebookFormat { get; set; }
         }
 
@@ -133,7 +133,7 @@ namespace Anthology.Plugins.LibrarySources
             public string mediaType { get; set; }
             public AudiobookShelfMedia media { get; set; }
             public int numFiles { get; set; }
-            public int size { get; set; }
+            public long size { get; set; }
         }
 
         public class AudiobookShelfItems
