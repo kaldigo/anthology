@@ -56,7 +56,12 @@ else
     {
         ClassificationsList = _classificationService.GetClassifications().OrderBy(c => c.Name).ToList();
         MetadataClassificationsList = _classificationService.GetAllClassifications().OrderBy(c => c.Name).ToList();
-        MetadataClassificationsList.RemoveAll(m => ClassificationsList.Any(c => c.Name == m.Name));
+        MetadataClassificationsList.RemoveAll(m =>
+	        ClassificationsList.Any(c =>
+		        string.Equals(c.Name, m.Name, StringComparison.OrdinalIgnoreCase) ||
+		        c.Aliases.Any(a => string.Equals(a.Name, m.Name, StringComparison.OrdinalIgnoreCase))
+	        )
+        );
         StateHasChanged();
     }
 
@@ -106,15 +111,34 @@ else
 
         if (!result.Cancelled)
         {
-            var aliases = new List<string>() { classification.Name };
-            aliases.AddRange(classification.Aliases.Select(a => a.Name));
-            if (!newClassification) _classificationService.DeleteClassification(classification);
+	        var aliases = new List<string> { classification.Name };
+	        aliases.AddRange(classification.Aliases.Select(a => a.Name));
 
-            var destination = (Data.Classification)result.Data;
-            destination.Aliases.AddRange(aliases.Select(a => new ClassificationAlias(){ Name = a}));
-            _classificationService.SaveClassification(destination);
+	        if (!newClassification)
+		        _classificationService.DeleteClassification(classification);
 
-            LoadData();
+	        var destination = (Data.Classification)result.Data;
+
+	        // Build a set of existing alias names (case-insensitive)
+	        var existing = new HashSet<string>(
+		        destination.Aliases.Select(a => a.Name),
+		        StringComparer.OrdinalIgnoreCase
+	        );
+
+	        // Never keep an alias equal to the destination's Name
+	        existing.RemoveWhere(n => string.Equals(n, destination.Name, StringComparison.OrdinalIgnoreCase));
+
+	        // Add incoming aliases if they aren't dupes and don't equal the destination name
+	        foreach (var a in aliases.Where(a => !string.IsNullOrWhiteSpace(a)))
+	        {
+		        if (!string.Equals(a, destination.Name, StringComparison.OrdinalIgnoreCase) && existing.Add(a))
+		        {
+			        destination.Aliases.Add(new ClassificationAlias { Name = a });
+		        }
+	        }
+
+	        _classificationService.SaveClassification(destination);
+	        LoadData();
         }
 
     }

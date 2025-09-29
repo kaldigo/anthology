@@ -137,7 +137,7 @@ namespace Anthology.Services
             // Merge DB with metadata-based classifications
             var allClassifications = dbClassifications
                 .Concat(metadataClassifications)
-                .DistinctBy(c => c.Name)
+                .DistinctBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             return allClassifications;
@@ -187,7 +187,7 @@ namespace Anthology.Services
             var dbClassifications = _context.Classifications.ToList();
             var allClassifications = dbClassifications
                 .Concat(metadataClassifications)
-                .DistinctBy(c => c.Name)
+                .DistinctBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             return allClassifications;
@@ -200,15 +200,23 @@ namespace Anthology.Services
 
         public Classification? GetClassification(string name)
         {
+            var lowered = name.ToLower();
+
             return _context.Classifications
-                .FirstOrDefault(
-                    c => c.Name.ToLower() == name.ToLower() ||
-                         c.Aliases.Any(a => a.Name.ToLower() == name.ToLower())
-                );
+                .FirstOrDefault(c =>
+                    c.Name.ToLower() == lowered ||
+                    c.Aliases.Any(a => a.Name.ToLower() == lowered));
         }
 
         public void SaveClassification(Classification classification, bool newClassification = false)
         {
+            classification.Aliases = classification.Aliases
+                .Where(a => !string.IsNullOrWhiteSpace(a.Name))
+                .GroupBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .Where(a => !string.Equals(a.Name, classification.Name, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
             if (newClassification)
             {
                 _context.Classifications.Add(classification);
@@ -245,7 +253,7 @@ namespace Anthology.Services
                 }
             }
 
-            return cleanedClassifications.DistinctBy(c => c.Name).ToList();
+            return cleanedClassifications.DistinctBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToList();
         }
     }
 }
